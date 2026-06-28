@@ -306,7 +306,7 @@
     background: #fafafa;
   }
   .digit-box.idle { color: var(--ink-mute); }
-  .digit-box.cycling { color: var(--accent); }
+  .digit-box.cycling { color: #000000; }
 
   @media (max-width: 920px) {
     .layout { grid-template-columns: 1fr; }
@@ -344,7 +344,32 @@
           </div>
           <div class="field">
             <label for="batchSize">Batch size</label>
-            <input type="number" id="batchSize" value="64" step="1" min="1">
+            <select id="batchSize" style="font-family: var(--mono); font-size: 13px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 7px 9px; width: 100; transition: border-color .12s ease, box-shadow .12s ease;">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="9">9</option>
+              <option value="12">12</option>
+              <option value="14">14</option>
+              <option value="18">18</option>
+              <option value="21">21</option>
+              <option value="27">27</option>
+              <option value="28">28</option>
+              <option value="36">36</option>
+              <option value="42">42</option>
+              <option value="54">54</option>
+              <option value="63" selected>63</option>
+              <option value="84">84</option>
+              <option value="108">108</option>
+              <option value="126">126</option>
+              <option value="189">189</option>
+              <option value="252">252</option>
+              <option value="378">378</option>
+              <option value="756">756</option>
+            </select>
           </div>
 
           <div class="field span">
@@ -407,8 +432,7 @@ const INPUT_SIZE = 784;
 const OUTPUT_SIZE = 10;
 
 let hiddenLayers = [
-  { size: 128, width: 1 },
-  { size: 64, width: 1 }
+  { size: 512, width: 1 },
 ];
 
 const archList = document.getElementById('archList');
