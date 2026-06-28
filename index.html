@@ -521,7 +521,9 @@ function renderNetwork() {
     const start = colIndex;
     for (let w = 0; w < layer.width; w++) {
       const x = PAD_X + colIndex * COL_GAP;
-      const block = (n - 1) * CIRCLE_GAP;
+      
+      const GAP_FOR_ELLIPSIS = 38;
+      const block = (n - 2) * CIRCLE_GAP + GAP_FOR_ELLIPSIS;
       const top = centerY - block / 2;
       const circles = [];
       
@@ -529,9 +531,9 @@ function renderNetwork() {
         circles.push({ x: x, y: top + i * CIRCLE_GAP });
       }
       
-      circles.push({ x: x, y: top + (n - 1) * CIRCLE_GAP });
+      circles.push({ x: x, y: top + (n - 2) * CIRCLE_GAP + GAP_FOR_ELLIPSIS });
       
-      const ellipsisY = top + (n - 2) * CIRCLE_GAP + 7;
+      const ellipsisY = top + (n - 2) * CIRCLE_GAP + (GAP_FOR_ELLIPSIS / 2) - 5;
       
       columns.push({ x: x, circles: circles, ellipsisY: ellipsisY });
       colIndex++;
