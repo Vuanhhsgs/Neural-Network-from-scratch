@@ -415,8 +415,10 @@ const archList = document.getElementById('archList');
 const vizWrap = document.getElementById('vizWrap');
 
 function circleCount(size) {
-  const n = Math.round(Math.log2(Math.max(2, size)));
-  return Math.max(2, Math.min(8, n));
+  if size == 10: return 3
+  elif size <10: return 2
+  else:
+    return 4 + Math.floor(size / 100)
 }
 
 function renderArchitecture() {
