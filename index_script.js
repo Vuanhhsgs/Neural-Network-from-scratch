@@ -1,0 +1,360 @@
+const INPUT_SIZE = 784;
+const OUTPUT_SIZE = 10;
+
+let hiddenLayers = [
+  { size: 512, width: 1 },
+];
+
+const archList = document.getElementById('archList');
+const vizWrap = document.getElementById('vizWrap');
+
+function circleCount(size) {
+  if (size == 10) return 3;
+  else if (size < 10) return 2;
+  else return 4 + Math.floor(size / 100);
+}
+
+function renderArchitecture() {
+  archList.innerHTML = '';
+  archList.appendChild(lockedRow('Input', INPUT_SIZE, 1));
+  hiddenLayers.forEach((layer, i) => archList.appendChild(hiddenRow(layer, i)));
+  archList.appendChild(lockedRow('Output', OUTPUT_SIZE, 1));
+}
+
+function lockedRow(name, size, width) {
+  const row = document.createElement('div');
+  row.className = 'arch-row locked';
+  row.innerHTML =
+    '<span class="arch-name">' + name + '</span>' +
+    '<span class="arch-dims"><span class="static">' + size + '</span>' +
+    '<span class="x">size &times;</span><span class="static">' + width + '</span>' +
+    '<span class="x">width</span></span>' +
+    '<button class="icon-btn ghost">&times;</button>';
+  return row;
+}
+
+function hiddenRow(layer, index) {
+  const row = document.createElement('div');
+  row.className = 'arch-row';
+
+  const name = document.createElement('span');
+  name.className = 'arch-name';
+  name.textContent = 'Layer ' + (index + 1);
+
+  const dims = document.createElement('span');
+  dims.className = 'arch-dims';
+
+  const sizeInput = document.createElement('input');
+  sizeInput.type = 'number';
+  sizeInput.min = '1';
+  sizeInput.value = layer.size;
+  sizeInput.addEventListener('input', () => {
+    layer.size = clampInt(sizeInput.value, 1, 4096);
+    renderNetwork();
+  });
+
+  const widthInput = document.createElement('input');
+  widthInput.type = 'number';
+  widthInput.min = '1';
+  widthInput.value = layer.width;
+  widthInput.addEventListener('input', () => {
+    layer.width = clampInt(widthInput.value, 1, 8);
+    renderNetwork();
+  });
+
+  const xa = document.createElement('span');
+  xa.className = 'x';
+  xa.textContent = 'size ×';
+  const xb = document.createElement('span');
+  xb.className = 'x';
+  xb.textContent = 'width';
+
+  dims.append(sizeInput, xa, widthInput, xb);
+
+  const remove = document.createElement('button');
+  remove.className = 'icon-btn';
+  remove.innerHTML = '&times;';
+  remove.title = 'Remove layer';
+  remove.addEventListener('click', () => {
+    hiddenLayers.splice(index, 1);
+    renderArchitecture();
+    renderNetwork();
+  });
+
+  row.append(name, dims, remove);
+  return row;
+}
+
+function clampInt(value, lo, hi) {
+  let n = parseInt(value, 10);
+  if (isNaN(n)) n = lo;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function renderNetwork() {
+  const layers = [{ label: 'Input', size: INPUT_SIZE, width: 1 }];
+  hiddenLayers.forEach((l, i) => layers.push({ label: 'Layer ' + (i + 1), size: l.size, width: l.width }));
+  layers.push({ label: 'Output', size: OUTPUT_SIZE, width: 1 });
+
+  const R = 9;
+  const CIRCLE_GAP = 24;
+  const COL_GAP = 60;
+  const PAD_X = 44;
+  const TOP = 28;
+  const LABEL_AREA = 58;
+  const HEIGHT = 384;
+  const fieldH = HEIGHT - TOP - LABEL_AREA;
+  const centerY = TOP + fieldH / 2;
+
+  const columns = [];
+  const groups = [];
+  let colIndex = 0;
+
+  layers.forEach(layer => {
+    const n = circleCount(layer.size);
+    const start = colIndex;
+    for (let w = 0; w < layer.width; w++) {
+      const x = PAD_X + colIndex * COL_GAP;
+      
+      const GAP_FOR_ELLIPSIS = 38;
+      const block = (n - 2) * CIRCLE_GAP + GAP_FOR_ELLIPSIS;
+      const top = centerY - block / 2;
+      const circles = [];
+      
+      for (let i = 0; i < n - 1; i++) {
+        circles.push({ x: x, y: top + i * CIRCLE_GAP });
+      }
+      
+      circles.push({ x: x, y: top + (n - 2) * CIRCLE_GAP + GAP_FOR_ELLIPSIS });
+      
+      const ellipsisY = top + (n - 2) * CIRCLE_GAP + (GAP_FOR_ELLIPSIS / 2) - 5;
+      
+      columns.push({ x: x, circles: circles, ellipsisY: ellipsisY });
+      colIndex++;
+    }
+    groups.push({ label: layer.label, dims: layer.size + '×' + layer.width, from: start, to: colIndex - 1 });
+  });
+
+  const totalWidth = PAD_X * 2 + (colIndex - 1) * COL_GAP;
+  const parts = [];
+
+  for (let c = 0; c < columns.length - 1; c++) {
+    const a = columns[c].circles;
+    const b = columns[c + 1].circles;
+    for (let i = 0; i < a.length; i++) {
+      for (let j = 0; j < b.length; j++) {
+        parts.push('<line x1="' + a[i].x + '" y1="' + a[i].y + '" x2="' + b[j].x + '" y2="' + b[j].y +
+          '" stroke="var(--edge)" stroke-width="0.7"/>');
+      }
+    }
+  }
+
+  columns.forEach(col => {
+    col.circles.forEach(p => {
+      parts.push('<circle cx="' + p.x + '" cy="' + p.y + '" r="' + R +
+        '" fill="#ffffff" stroke="var(--node)" stroke-width="1.4"/>');
+    });
+    for (let d = 0; d < 3; d++) {
+      parts.push('<circle cx="' + col.x + '" cy="' + (col.ellipsisY + d * 5) + '" r="1.4" fill="var(--node)"/>');
+    }
+  });
+
+  groups.forEach(g => {
+    const cx = (columns[g.from].x + columns[g.to].x) / 2;
+    const ly = HEIGHT - LABEL_AREA + 22;
+    parts.push('<text x="' + cx + '" y="' + ly + '" text-anchor="middle" font-family="var(--sans)" ' +
+      'font-size="12" font-weight="600" fill="var(--ink)">' + g.label + '</text>');
+    parts.push('<text x="' + cx + '" y="' + (ly + 18) + '" text-anchor="middle" font-family="var(--mono)" ' +
+      'font-size="11" fill="var(--ink-mute)">' + g.dims + '</text>');
+  });
+
+  vizWrap.innerHTML =
+    '<svg viewBox="0 0 ' + totalWidth + ' ' + HEIGHT + '" preserveAspectRatio="xMidYMid meet" ' +
+    'style="min-width:' + Math.max(480, totalWidth) + 'px">' + parts.join('') + '</svg>';
+}
+
+let accuracyHistory = [];
+
+function renderAccuracyChart(history) {
+  accuracyHistory = history || accuracyHistory;
+  const W = 360, H = 150, L = 34, B = 26, T = 12, Rp = 10;
+  const plotW = W - L - Rp, plotH = H - T - B;
+  const maxEpoch = Math.max(1, accuracyHistory.length ? accuracyHistory[accuracyHistory.length - 1].epoch : 1);
+
+  const parts = [];
+  parts.push('<line x1="' + L + '" y1="' + T + '" x2="' + L + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
+  parts.push('<line x1="' + L + '" y1="' + (T + plotH) + '" x2="' + (W - Rp) + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
+
+  [0, 50, 100].forEach(v => {
+    const y = T + plotH - (v / 100) * plotH;
+    parts.push('<line x1="' + L + '" y1="' + y + '" x2="' + (W - Rp) + '" y2="' + y + '" stroke="var(--line)" stroke-width="0.7"/>');
+    parts.push('<text x="' + (L - 6) + '" y="' + (y + 3) + '" text-anchor="end" font-family="var(--mono)" font-size="9" fill="var(--ink-mute)">' + v + '</text>');
+  });
+
+  parts.push('<text x="' + (L - 22) + '" y="' + (T + plotH / 2) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)" transform="rotate(-90 ' + (L - 22) + ' ' + (T + plotH / 2) + ')">Accuracy</text>');
+  parts.push('<text x="' + (L + plotW / 2) + '" y="' + (H - 4) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)">Epochs</text>');
+
+  if (accuracyHistory.length > 1) {
+    const pts = accuracyHistory.map(p => {
+      const x = L + (p.epoch / maxEpoch) * plotW;
+      const y = T + plotH - (Math.max(0, Math.min(100, p.acc)) / 100) * plotH;
+      return x + ',' + y;
+    }).join(' ');
+    parts.push('<polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="1.6"/>');
+  }
+
+  document.getElementById('chartWrap').innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '">' + parts.join('') + '</svg>';
+}
+
+function setTestAccuracy(pct) {
+  document.getElementById('testAcc').textContent =
+    (pct === null || pct === undefined) ? '—' : (Number(pct).toFixed(2) + '%');
+}
+
+const pad = document.getElementById('pad');
+const ctx = pad.getContext('2d');
+let drawing = false;
+
+function resetPad() {
+  ctx.fillStyle = '#111114';
+  ctx.fillRect(0, 0, pad.width, pad.height);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 18;
+}
+resetPad();
+
+function padPos(e) {
+  const r = pad.getBoundingClientRect();
+  const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+  const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+  return { x: cx * (pad.width / r.width), y: cy * (pad.height / r.height) };
+}
+
+function startDraw(e) {
+  drawing = true;
+  const p = padPos(e);
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  e.preventDefault();
+}
+function moveDraw(e) {
+  if (!drawing) return;
+  const p = padPos(e);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  e.preventDefault();
+}
+function endDraw() { drawing = false; }
+
+pad.addEventListener('mousedown', startDraw);
+pad.addEventListener('mousemove', moveDraw);
+window.addEventListener('mouseup', endDraw);
+pad.addEventListener('touchstart', startDraw, { passive: false });
+pad.addEventListener('touchmove', moveDraw, { passive: false });
+pad.addEventListener('touchend', endDraw);
+
+function getPixels() {
+  const small = document.createElement('canvas');
+  small.width = 28;
+  small.height = 28;
+  const sctx = small.getContext('2d');
+  sctx.drawImage(pad, 0, 0, 28, 28);
+  const data = sctx.getImageData(0, 0, 28, 28).data;
+  const out = new Float32Array(784);
+  for (let i = 0; i < 784; i++) out[i] = data[i * 4] / 255;
+  return out;
+}
+
+const predictionBox = document.getElementById('prediction');
+let cycleTimer = null;
+
+function startPredictionCycle() {
+  stopPredictionCycle();
+  predictionBox.classList.remove('idle');
+  predictionBox.classList.add('cycling');
+  cycleTimer = setInterval(() => {
+    predictionBox.textContent = Math.floor(Math.random() * 10);
+  }, 55);
+}
+
+function stopPredictionCycle() {
+  if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
+}
+
+function showPrediction(digit) {
+  stopPredictionCycle();
+  predictionBox.classList.remove('cycling', 'idle');
+  predictionBox.textContent = digit;
+}
+
+function getNetworkConfig() {
+  return {
+    learningRate: parseFloat(document.getElementById('learningRate').value),
+    epochs: clampInt(document.getElementById('epochs').value, 1, 100000),
+    batchSize: clampInt(document.getElementById('batchSize').value, 1, 100000),
+    dropout: {
+      enabled: document.getElementById('dropoutEnabled').checked,
+      rate: parseFloat(document.getElementById('dropoutRate').value)
+    },
+    regularization: {
+      enabled: document.getElementById('regEnabled').checked,
+      lambda: parseFloat(document.getElementById('lambda').value)
+    },
+    layers: [
+      { type: 'input', size: INPUT_SIZE, width: 1 },
+      ...hiddenLayers.map(l => ({ type: 'hidden', size: l.size, width: l.width })),
+      { type: 'output', size: OUTPUT_SIZE, width: 1 }
+    ]
+  };
+}
+
+async function trainModel(config) {
+}
+
+async function predictDigit(pixels) {
+}
+
+document.getElementById('addLayer').addEventListener('click', () => {
+  hiddenLayers.push({ size: 32, width: 1 });
+  renderArchitecture();
+  renderNetwork();
+});
+
+document.getElementById('dropoutEnabled').addEventListener('change', e => {
+  document.getElementById('dropoutRate').disabled = !e.target.checked;
+});
+document.getElementById('regEnabled').addEventListener('change', e => {
+  document.getElementById('lambda').disabled = !e.target.checked;
+});
+
+document.getElementById('trainBtn').addEventListener('click', () => {
+  trainModel(getNetworkConfig());
+});
+
+document.getElementById('predictBtn').addEventListener('click', async () => {
+  startPredictionCycle();
+  const result = await predictDigit(getPixels());
+  if (result !== undefined && result !== null) showPrediction(result);
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  resetPad();
+  stopPredictionCycle();
+  predictionBox.classList.remove('cycling');
+  predictionBox.classList.add('idle');
+  predictionBox.textContent = '—';
+});
+
+window.setTestAccuracy = setTestAccuracy;
+window.renderAccuracyChart = renderAccuracyChart;
+window.showPrediction = showPrediction;
+window.getNetworkConfig = getNetworkConfig;
+window.trainModel = trainModel;
+window.predictDigit = predictDigit;
+
+renderArchitecture();
+renderNetwork();
+renderAccuracyChart([]);
