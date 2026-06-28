@@ -3,449 +3,764 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Handwritten Digit Recognition Interface</title>
+<title>Custom Neural Network — Handwritten Digit Recognition</title>
 <style>
-    body {
-        font-family: system-ui, -apple-system, sans-serif;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        height: 100vh;
-        background-color: #f4f4f9;
-        color: #1a1a1a;
-    }
-    .sidebar {
-        width: 320px;
-        padding: 20px;
-        background: #ffffff;
-        border-right: 1px solid #e0e0e0;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-    .main-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        padding: 20px;
-        gap: 20px;
-        overflow: hidden;
-    }
-    .panel {
-        background: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 15px;
-    }
-    .form-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-        font-size: 14px;
-    }
-    .form-row input[type="number"] {
-        width: 60px;
-        padding: 4px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    .checkbox-group {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 15px;
-        font-size: 14px;
-    }
-    button {
-        background-color: #000000;
-        color: #ffffff;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        transition: background-color 0.2s;
-    }
-    button:hover {
-        background-color: #333333;
-    }
-    .layer-controls {
-        border: 1px dashed #cccccc;
-        padding: 10px;
-        border-radius: 6px;
-    }
-    .layer-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin: 8px 0;
-        padding: 6px;
-        background: #f9f9f9;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-    }
-    .layer-item button {
-        background-color: #d9534f;
-        padding: 4px 8px;
-        font-size: 12px;
-    }
-    .layer-item button:hover {
-        background-color: #c9302c;
-    }
-    #networkContainer {
-        flex: 1;
-        min-height: 300px;
-        background: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        position: relative;
-    }
-    #networkCanvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-    }
-    .bottom-section {
-        display: flex;
-        height: 250px;
-        gap: 20px;
-    }
-    .chart-panel {
-        flex: 1;
-        position: relative;
-        display: flex;
-        align-items: flex-end;
-        padding: 20px;
-    }
-    .axes {
-        width: 100%;
-        height: 100%;
-        border-left: 2px solid #000;
-        border-bottom: 2px solid #000;
-        position: relative;
-    }
-    .axes::before {
-        content: 'Accuracy';
-        position: absolute;
-        top: 0;
-        left: -20px;
-        transform: rotate(-90deg);
-        transform-origin: left top;
-        font-size: 12px;
-    }
-    .axes::after {
-        content: 'Epochs';
-        position: absolute;
-        bottom: -20px;
-        right: 0;
-        font-size: 12px;
-    }
-    .testing-panel {
-        width: 400px;
-        display: flex;
-        gap: 20px;
-    }
-    .canvas-wrapper {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-    }
-    #digitCanvas {
-        border: 2px solid #000000;
-        background-color: #ffffff;
-        cursor: crosshair;
-        touch-action: none;
-    }
-    .prediction-wrapper {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: flex-start;
-        gap: 15px;
-    }
-    .prediction-text {
-        font-size: 18px;
-    }
-    #predictionResult {
-        font-size: 32px;
-        font-weight: bold;
-        color: #007bff;
-    }
+  :root {
+    --bg: #ffffff;
+    --grid: #f2f2f3;
+    --surface: #ffffff;
+    --line: #e4e4e7;
+    --line-strong: #d4d4d8;
+    --ink: #18181b;
+    --ink-soft: #52525b;
+    --ink-mute: #a1a1aa;
+    --accent: #4f46e5;
+    --node: #27272a;
+    --edge: #d9d9de;
+    --radius: 6px;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 26px 26px;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 36px 28px 64px;
+  }
+
+  .masthead {
+    margin-bottom: 28px;
+  }
+
+  .masthead h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+
+  .masthead p {
+    margin: 6px 0 0;
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 0 0 16px;
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 18px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field.span { grid-column: 1 / -1; }
+
+  .field label {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  input[type="number"], input[type="text"] {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 7px 9px;
+    width: 100%;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+
+  input[type="number"]:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+  }
+
+  input:disabled {
+    background: #f8f8f9;
+    color: var(--ink-mute);
+    cursor: not-allowed;
+  }
+
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    user-select: none;
+    cursor: pointer;
+  }
+
+  .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  .arch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .arch-row {
+    display: grid;
+    grid-template-columns: 78px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+  }
+
+  .arch-row.locked {
+    background: #fafafa;
+    border-style: dashed;
+  }
+
+  .arch-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .arch-dims {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  .arch-dims input { padding: 5px 7px; width: 62px; }
+  .arch-dims .x { color: var(--ink-mute); }
+  .arch-dims .static { color: var(--ink-soft); }
+
+  .icon-btn {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink-soft);
+    border-radius: 4px;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+    transition: border-color .12s ease, color .12s ease, background .12s ease;
+  }
+
+  .icon-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .icon-btn.ghost { visibility: hidden; }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 550;
+    border-radius: 5px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+
+  .btn-solid {
+    background: var(--ink);
+    color: #fff;
+    border: 1px solid var(--ink);
+  }
+  .btn-solid:hover { background: #000; }
+
+  .btn-line {
+    background: #fff;
+    color: var(--ink);
+    border: 1px dashed var(--line-strong);
+    width: 100%;
+  }
+  .btn-line:hover { border-color: var(--ink); }
+
+  .train-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .metric {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .metric b { color: var(--ink); font-weight: 600; }
+
+  .chart-wrap { width: 100%; }
+  .chart-wrap svg { width: 100%; height: auto; display: block; }
+
+  .viz-scroll {
+    overflow-x: auto;
+    margin: 0 -4px;
+    padding: 0 4px;
+  }
+  .viz-scroll svg { display: block; width: 100%; height: auto; min-width: 480px; }
+
+  .viz-hint {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--ink-mute);
+  }
+
+  .test-grid {
+    display: grid;
+    grid-template-columns: 252px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .pad-block { display: flex; flex-direction: column; gap: 10px; }
+
+  .pad-frame {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px;
+    background: #fff;
+    width: max-content;
+  }
+
+  #pad {
+    display: block;
+    background: #111114;
+    border-radius: 2px;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .pad-actions { display: flex; gap: 8px; }
+  .pad-actions .btn { flex: 0 0 auto; }
+
+  .readout { display: flex; flex-direction: column; gap: 14px; }
+
+  .readout .label { font-size: 12px; color: var(--ink-soft); }
+
+  .digit-box {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    height: 132px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 64px;
+    font-weight: 500;
+    color: var(--ink);
+    background: #fafafa;
+  }
+  .digit-box.idle { color: var(--ink-mute); }
+  .digit-box.cycling { color: var(--accent); }
+
+  @media (max-width: 920px) {
+    .layout { grid-template-columns: 1fr; }
+    .test-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
+<div class="page">
+  <header class="masthead">
+    <h1>Custom Neural Network</h1>
+    <p>Build, train, and test a handwritten digit recognizer.</p>
+  </header>
 
-<div class="sidebar">
-    <div class="panel">
-        <div class="checkbox-group">
-            <label><input type="checkbox" id="dropoutCheck"> Dropout</label>
-            <label><input type="checkbox" id="regCheck"> Regularization</label>
+  <div class="layout">
+    <div class="col">
+      <section class="card">
+        <h2 class="card-title">Hyperparameters</h2>
+        <div class="field-grid">
+          <label class="toggle"><input type="checkbox" id="dropoutEnabled"> Dropout</label>
+          <label class="toggle"><input type="checkbox" id="regEnabled"> Regularization</label>
+
+          <div class="field">
+            <label for="dropoutRate">Dropout rate</label>
+            <input type="number" id="dropoutRate" value="0.2" step="0.05" min="0" max="1" disabled>
+          </div>
+          <div class="field">
+            <label for="epochs">Epochs</label>
+            <input type="number" id="epochs" value="20" step="1" min="1">
+          </div>
+
+          <div class="field">
+            <label for="learningRate">Learning rate</label>
+            <input type="number" id="learningRate" value="0.01" step="0.001" min="0">
+          </div>
+          <div class="field">
+            <label for="batchSize">Batch size</label>
+            <input type="number" id="batchSize" value="64" step="1" min="1">
+          </div>
+
+          <div class="field span">
+            <label for="lambda">Regularization parameter &lambda;</label>
+            <input type="number" id="lambda" value="0.001" step="0.0001" min="0" disabled>
+          </div>
         </div>
-        <div class="form-row">
-            <span>Dropout rate:</span>
-            <input type="number" step="0.1" value="0.2" id="dropoutRate">
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Architecture</h2>
+        <div class="arch-list" id="archList"></div>
+        <div style="margin-top:14px">
+          <button class="btn btn-line" id="addLayer">Add another layer</button>
         </div>
-        <div class="form-row">
-            <span>Epochs:</span>
-            <input type="number" value="10" id="epochs">
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Training</h2>
+        <div class="train-bar">
+          <button class="btn btn-solid" id="trainBtn">Train</button>
+          <span class="metric">Test accuracy: <b id="testAcc">—</b></span>
         </div>
-        <div class="form-row">
-            <span>Learning rate:</span>
-            <input type="number" step="0.001" value="0.001" id="lr">
-        </div>
-        <div class="form-row">
-            <span>Batch Size:</span>
-            <input type="number" value="32" id="batchSize">
-        </div>
-        <div class="form-row">
-            <span>Reg. parameter &lambda;:</span>
-            <input type="number" step="0.01" value="0.01" id="regParam">
-        </div>
+        <div class="chart-wrap" id="chartWrap"></div>
+      </section>
     </div>
 
-    <div class="panel layer-controls">
-        <div class="form-row" style="font-weight: bold;">
-            <span>Input:</span>
-            <span>784 x 1</span>
-        </div>
-        <div id="dynamicLayers"></div>
-        <div class="form-row" style="font-weight: bold;">
-            <span>Output:</span>
-            <span>10 x 1</span>
-        </div>
-        <button id="addLayerBtn" style="width: 100%; margin-top: 10px; background-color: #28a745;">+ Add another layer</button>
-    </div>
+    <div class="col">
+      <section class="card">
+        <h2 class="card-title">Network</h2>
+        <div class="viz-scroll" id="vizWrap"></div>
+        <p class="viz-hint">Larger layers render more nodes above the ellipsis.</p>
+      </section>
 
-    <div class="panel" style="text-align: center;">
-        <button id="trainBtn" style="width: 100%; padding: 12px; font-size: 16px; margin-bottom: 15px;">Train Network</button>
-        <div style="font-size: 18px;">Test Accuracy: <span id="accuracyDisplay" style="font-weight: bold;">--%</span></div>
-    </div>
-</div>
-
-<div class="main-content">
-    <div id="networkContainer">
-        <canvas id="networkCanvas"></canvas>
-    </div>
-
-    <div class="bottom-section">
-        <div class="panel chart-panel">
-            <div class="axes"></div>
-        </div>
-
-        <div class="panel testing-panel">
-            <div class="canvas-wrapper">
-                <span style="font-weight: bold;">Draw a digit</span>
-                <canvas id="digitCanvas" width="140" height="140"></canvas>
-                <button id="clearBtn">Clear</button>
+      <section class="card">
+        <h2 class="card-title">Test your model</h2>
+        <div class="test-grid">
+          <div class="pad-block">
+            <span class="label">Draw a digit</span>
+            <div class="pad-frame">
+              <canvas id="pad" width="252" height="252"></canvas>
             </div>
-            <div class="prediction-wrapper">
-                <button id="predictBtn" style="padding: 12px 24px; font-size: 16px; background-color: #007bff;">Predict</button>
-                <div class="prediction-text">
-                    Prediction is: <br>
-                    <span id="predictionResult">[]</span>
-                </div>
+            <div class="pad-actions">
+              <button class="btn btn-solid" id="predictBtn">Predict</button>
+              <button class="btn btn-line" id="clearBtn" style="width:auto">Clear</button>
             </div>
+          </div>
+          <div class="readout">
+            <span class="label">Your model prediction is</span>
+            <div class="digit-box idle" id="prediction">—</div>
+          </div>
         </div>
+      </section>
     </div>
+  </div>
 </div>
 
 <script>
-    const networkCanvas = document.getElementById('networkCanvas');
-    const netCtx = networkCanvas.getContext('2d');
-    const digitCanvas = document.getElementById('digitCanvas');
-    const digitCtx = digitCanvas.getContext('2d');
-    const dynamicLayersContainer = document.getElementById('dynamicLayers');
-    const predictionResult = document.getElementById('predictionResult');
-    
-    let architecture = [784, 128, 64, 10];
-    let isDrawing = false;
-    let predictionInterval;
+const INPUT_SIZE = 784;
+const OUTPUT_SIZE = 10;
 
-    function resizeCanvas() {
-        const rect = networkCanvas.parentElement.getBoundingClientRect();
-        networkCanvas.width = rect.width;
-        networkCanvas.height = rect.height;
-        drawNetworkVisualization();
+let hiddenLayers = [
+  { size: 128, width: 1 },
+  { size: 64, width: 1 }
+];
+
+const archList = document.getElementById('archList');
+const vizWrap = document.getElementById('vizWrap');
+
+function circleCount(size) {
+  const n = Math.round(Math.log2(Math.max(2, size)));
+  return Math.max(2, Math.min(8, n));
+}
+
+function renderArchitecture() {
+  archList.innerHTML = '';
+  archList.appendChild(lockedRow('Input', INPUT_SIZE, 1));
+  hiddenLayers.forEach((layer, i) => archList.appendChild(hiddenRow(layer, i)));
+  archList.appendChild(lockedRow('Output', OUTPUT_SIZE, 1));
+}
+
+function lockedRow(name, size, width) {
+  const row = document.createElement('div');
+  row.className = 'arch-row locked';
+  row.innerHTML =
+    '<span class="arch-name">' + name + '</span>' +
+    '<span class="arch-dims"><span class="static">' + size + '</span>' +
+    '<span class="x">size &times;</span><span class="static">' + width + '</span>' +
+    '<span class="x">width</span></span>' +
+    '<button class="icon-btn ghost">&times;</button>';
+  return row;
+}
+
+function hiddenRow(layer, index) {
+  const row = document.createElement('div');
+  row.className = 'arch-row';
+
+  const name = document.createElement('span');
+  name.className = 'arch-name';
+  name.textContent = 'Layer ' + (index + 1);
+
+  const dims = document.createElement('span');
+  dims.className = 'arch-dims';
+
+  const sizeInput = document.createElement('input');
+  sizeInput.type = 'number';
+  sizeInput.min = '1';
+  sizeInput.value = layer.size;
+  sizeInput.addEventListener('input', () => {
+    layer.size = clampInt(sizeInput.value, 1, 4096);
+    renderNetwork();
+  });
+
+  const widthInput = document.createElement('input');
+  widthInput.type = 'number';
+  widthInput.min = '1';
+  widthInput.value = layer.width;
+  widthInput.addEventListener('input', () => {
+    layer.width = clampInt(widthInput.value, 1, 8);
+    renderNetwork();
+  });
+
+  const xa = document.createElement('span');
+  xa.className = 'x';
+  xa.textContent = 'size ×';
+  const xb = document.createElement('span');
+  xb.className = 'x';
+  xb.textContent = 'width';
+
+  dims.append(sizeInput, xa, widthInput, xb);
+
+  const remove = document.createElement('button');
+  remove.className = 'icon-btn';
+  remove.innerHTML = '&times;';
+  remove.title = 'Remove layer';
+  remove.addEventListener('click', () => {
+    hiddenLayers.splice(index, 1);
+    renderArchitecture();
+    renderNetwork();
+  });
+
+  row.append(name, dims, remove);
+  return row;
+}
+
+function clampInt(value, lo, hi) {
+  let n = parseInt(value, 10);
+  if (isNaN(n)) n = lo;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function renderNetwork() {
+  const layers = [{ label: 'Input', size: INPUT_SIZE, width: 1 }];
+  hiddenLayers.forEach((l, i) => layers.push({ label: 'Layer ' + (i + 1), size: l.size, width: l.width }));
+  layers.push({ label: 'Output', size: OUTPUT_SIZE, width: 1 });
+
+  const R = 9;
+  const CIRCLE_GAP = 24;
+  const COL_GAP = 60;
+  const PAD_X = 44;
+  const TOP = 28;
+  const LABEL_AREA = 58;
+  const HEIGHT = 384;
+  const fieldH = HEIGHT - TOP - LABEL_AREA;
+  const centerY = TOP + fieldH / 2;
+
+  const columns = [];
+  const groups = [];
+  let colIndex = 0;
+
+  layers.forEach(layer => {
+    const n = circleCount(layer.size);
+    const start = colIndex;
+    for (let w = 0; w < layer.width; w++) {
+      const x = PAD_X + colIndex * COL_GAP;
+      const block = (n - 1) * CIRCLE_GAP;
+      const top = centerY - block / 2;
+      const circles = [];
+      
+      for (let i = 0; i < n - 1; i++) {
+        circles.push({ x: x, y: top + i * CIRCLE_GAP });
+      }
+      
+      circles.push({ x: x, y: top + (n - 1) * CIRCLE_GAP });
+      
+      const ellipsisY = top + (n - 2) * CIRCLE_GAP + 7;
+      
+      columns.push({ x: x, circles: circles, ellipsisY: ellipsisY });
+      colIndex++;
     }
+    groups.push({ label: layer.label, dims: layer.size + '×' + layer.width, from: start, to: colIndex - 1 });
+  });
 
-    window.addEventListener('resize', resizeCanvas);
+  const totalWidth = PAD_X * 2 + (colIndex - 1) * COL_GAP;
+  const parts = [];
 
-    function updateLayerUI() {
-        dynamicLayersContainer.innerHTML = '';
-        for (let i = 1; i < architecture.length - 1; i++) {
-            const row = document.createElement('div');
-            row.className = 'layer-item';
-            
-            const labelContainer = document.createElement('div');
-            labelContainer.textContent = `Layer ${i}: `;
-            
-            const sizeInput = document.createElement('input');
-            sizeInput.type = 'number';
-            sizeInput.value = architecture[i];
-            sizeInput.style.width = '60px';
-            sizeInput.onchange = (e) => {
-                architecture[i] = parseInt(e.target.value) || 1;
-                drawNetworkVisualization();
-            };
-
-            const removeBtn = document.createElement('button');
-            removeBtn.textContent = 'X';
-            removeBtn.onclick = () => {
-                architecture.splice(i, 1);
-                updateLayerUI();
-                drawNetworkVisualization();
-            };
-
-            labelContainer.appendChild(sizeInput);
-            labelContainer.appendChild(document.createTextNode(' nodes'));
-            row.appendChild(labelContainer);
-            row.appendChild(removeBtn);
-            dynamicLayersContainer.appendChild(row);
-        }
+  for (let c = 0; c < columns.length - 1; c++) {
+    const a = columns[c].circles;
+    const b = columns[c + 1].circles;
+    for (let i = 0; i < a.length; i++) {
+      for (let j = 0; j < b.length; j++) {
+        parts.push('<line x1="' + a[i].x + '" y1="' + a[i].y + '" x2="' + b[j].x + '" y2="' + b[j].y +
+          '" stroke="var(--edge)" stroke-width="0.7"/>');
+      }
     }
+  }
 
-    document.getElementById('addLayerBtn').addEventListener('click', () => {
-        architecture.splice(architecture.length - 1, 0, 32);
-        updateLayerUI();
-        drawNetworkVisualization();
+  columns.forEach(col => {
+    col.circles.forEach(p => {
+      parts.push('<circle cx="' + p.x + '" cy="' + p.y + '" r="' + R +
+        '" fill="#ffffff" stroke="var(--node)" stroke-width="1.4"/>');
     });
-
-    function drawNetworkVisualization() {
-        netCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
-        
-        const paddingX = 60;
-        const paddingY = 40;
-        const width = networkCanvas.width - paddingX * 2;
-        const height = networkCanvas.height - paddingY * 2;
-        
-        const layerPositions = [];
-        
-        for (let i = 0; i < architecture.length; i++) {
-            const layerSize = architecture[i];
-            const maxVisualNodes = 8;
-            const nodesToDraw = Math.min(layerSize, maxVisualNodes);
-            const x = paddingX + (i * (width / Math.max(1, architecture.length - 1)));
-            const nodesX = [];
-            
-            for (let j = 0; j < nodesToDraw; j++) {
-                const y = paddingY + (j * (height / Math.max(1, nodesToDraw - 1)));
-                nodesX.push({ x, y });
-            }
-            
-            layerPositions.push(nodesX);
-            
-            if (layerSize > maxVisualNodes) {
-                netCtx.fillStyle = '#000';
-                netCtx.font = '24px Arial';
-                netCtx.textAlign = 'center';
-                netCtx.fillText('⋮', x, networkCanvas.height / 2 + 10);
-            }
-        }
-        
-        netCtx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
-        netCtx.lineWidth = 1;
-        
-        for (let i = 0; i < layerPositions.length - 1; i++) {
-            const currentLayer = layerPositions[i];
-            const nextLayer = layerPositions[i + 1];
-            
-            for (let nodeA of currentLayer) {
-                for (let nodeB of nextLayer) {
-                    netCtx.beginPath();
-                    netCtx.moveTo(nodeA.x, nodeA.y);
-                    netCtx.lineTo(nodeB.x, nodeB.y);
-                    netCtx.stroke();
-                }
-            }
-        }
-        
-        netCtx.fillStyle = '#ffffff';
-        netCtx.strokeStyle = '#000000';
-        netCtx.lineWidth = 2;
-        
-        for (let layer of layerPositions) {
-            for (let node of layer) {
-                netCtx.beginPath();
-                netCtx.arc(node.x, node.y, 12, 0, Math.PI * 2);
-                netCtx.fill();
-                netCtx.stroke();
-            }
-        }
+    for (let d = 0; d < 3; d++) {
+      parts.push('<circle cx="' + col.x + '" cy="' + (col.ellipsisY + d * 5) + '" r="1.4" fill="var(--node)"/>');
     }
+  });
 
-    digitCtx.lineWidth = 12;
-    digitCtx.lineCap = 'round';
-    digitCtx.strokeStyle = '#000000';
+  groups.forEach(g => {
+    const cx = (columns[g.from].x + columns[g.to].x) / 2;
+    const ly = HEIGHT - LABEL_AREA + 22;
+    parts.push('<text x="' + cx + '" y="' + ly + '" text-anchor="middle" font-family="var(--sans)" ' +
+      'font-size="12" font-weight="600" fill="var(--ink)">' + g.label + '</text>');
+    parts.push('<text x="' + cx + '" y="' + (ly + 18) + '" text-anchor="middle" font-family="var(--mono)" ' +
+      'font-size="11" fill="var(--ink-mute)">' + g.dims + '</text>');
+  });
 
-    function getMousePos(evt) {
-        const rect = digitCanvas.getBoundingClientRect();
-        if (evt.touches && evt.touches.length > 0) {
-            return {
-                x: evt.touches[0].clientX - rect.left,
-                y: evt.touches[0].clientY - rect.top
-            };
-        }
-        return {
-            x: evt.clientX - rect.left,
-            y: evt.clientY - rect.top
-        };
-    }
+  vizWrap.innerHTML =
+    '<svg viewBox="0 0 ' + totalWidth + ' ' + HEIGHT + '" preserveAspectRatio="xMidYMid meet" ' +
+    'style="min-width:' + Math.max(480, totalWidth) + 'px">' + parts.join('') + '</svg>';
+}
 
-    function startPosition(e) {
-        e.preventDefault();
-        isDrawing = true;
-        const pos = getMousePos(e);
-        digitCtx.beginPath();
-        digitCtx.moveTo(pos.x, pos.y);
-    }
+let accuracyHistory = [];
 
-    function draw(e) {
-        if (!isDrawing) return;
-        e.preventDefault();
-        const pos = getMousePos(e);
-        digitCtx.lineTo(pos.x, pos.y);
-        digitCtx.stroke();
-    }
+function renderAccuracyChart(history) {
+  accuracyHistory = history || accuracyHistory;
+  const W = 360, H = 150, L = 34, B = 26, T = 12, Rp = 10;
+  const plotW = W - L - Rp, plotH = H - T - B;
+  const maxEpoch = Math.max(1, accuracyHistory.length ? accuracyHistory[accuracyHistory.length - 1].epoch : 1);
 
-    function endPosition() {
-        isDrawing = false;
-        digitCtx.beginPath();
-    }
+  const parts = [];
+  parts.push('<line x1="' + L + '" y1="' + T + '" x2="' + L + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
+  parts.push('<line x1="' + L + '" y1="' + (T + plotH) + '" x2="' + (W - Rp) + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
 
-    digitCanvas.addEventListener('mousedown', startPosition);
-    digitCanvas.addEventListener('mousemove', draw);
-    digitCanvas.addEventListener('mouseup', endPosition);
-    digitCanvas.addEventListener('mouseout', endPosition);
+  [0, 50, 100].forEach(v => {
+    const y = T + plotH - (v / 100) * plotH;
+    parts.push('<line x1="' + L + '" y1="' + y + '" x2="' + (W - Rp) + '" y2="' + y + '" stroke="var(--line)" stroke-width="0.7"/>');
+    parts.push('<text x="' + (L - 6) + '" y="' + (y + 3) + '" text-anchor="end" font-family="var(--mono)" font-size="9" fill="var(--ink-mute)">' + v + '</text>');
+  });
 
-    digitCanvas.addEventListener('touchstart', startPosition);
-    digitCanvas.addEventListener('touchmove', draw);
-    digitCanvas.addEventListener('touchend', endPosition);
+  parts.push('<text x="' + (L - 22) + '" y="' + (T + plotH / 2) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)" transform="rotate(-90 ' + (L - 22) + ' ' + (T + plotH / 2) + ')">Accuracy</text>');
+  parts.push('<text x="' + (L + plotW / 2) + '" y="' + (H - 4) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)">Epochs</text>');
 
-    document.getElementById('clearBtn').addEventListener('click', () => {
-        digitCtx.clearRect(0, 0, digitCanvas.width, digitCanvas.height);
-        clearInterval(predictionInterval);
-        predictionResult.textContent = '[]';
-    });
+  if (accuracyHistory.length > 1) {
+    const pts = accuracyHistory.map(p => {
+      const x = L + (p.epoch / maxEpoch) * plotW;
+      const y = T + plotH - (Math.max(0, Math.min(100, p.acc)) / 100) * plotH;
+      return x + ',' + y;
+    }).join(' ');
+    parts.push('<polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="1.6"/>');
+  }
 
-    document.getElementById('predictBtn').addEventListener('click', () => {
-        clearInterval(predictionInterval);
-        predictionInterval = setInterval(() => {
-            predictionResult.textContent = Math.floor(Math.random() * 10);
-        }, 50);
+  document.getElementById('chartWrap').innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '">' + parts.join('') + '</svg>';
+}
 
-        setTimeout(() => {
-            clearInterval(predictionInterval);
-            predictionResult.textContent = Math.floor(Math.random() * 10);
-        }, 1200);
-    });
+function setTestAccuracy(pct) {
+  document.getElementById('testAcc').textContent =
+    (pct === null || pct === undefined) ? '—' : (Number(pct).toFixed(2) + '%');
+}
 
-    updateLayerUI();
-    setTimeout(resizeCanvas, 0);
+const pad = document.getElementById('pad');
+const ctx = pad.getContext('2d');
+let drawing = false;
+
+function resetPad() {
+  ctx.fillStyle = '#111114';
+  ctx.fillRect(0, 0, pad.width, pad.height);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 18;
+}
+resetPad();
+
+function padPos(e) {
+  const r = pad.getBoundingClientRect();
+  const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+  const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+  return { x: cx * (pad.width / r.width), y: cy * (pad.height / r.height) };
+}
+
+function startDraw(e) {
+  drawing = true;
+  const p = padPos(e);
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  e.preventDefault();
+}
+function moveDraw(e) {
+  if (!drawing) return;
+  const p = padPos(e);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  e.preventDefault();
+}
+function endDraw() { drawing = false; }
+
+pad.addEventListener('mousedown', startDraw);
+pad.addEventListener('mousemove', moveDraw);
+window.addEventListener('mouseup', endDraw);
+pad.addEventListener('touchstart', startDraw, { passive: false });
+pad.addEventListener('touchmove', moveDraw, { passive: false });
+pad.addEventListener('touchend', endDraw);
+
+function getPixels() {
+  const small = document.createElement('canvas');
+  small.width = 28;
+  small.height = 28;
+  const sctx = small.getContext('2d');
+  sctx.drawImage(pad, 0, 0, 28, 28);
+  const data = sctx.getImageData(0, 0, 28, 28).data;
+  const out = new Float32Array(784);
+  for (let i = 0; i < 784; i++) out[i] = data[i * 4] / 255;
+  return out;
+}
+
+const predictionBox = document.getElementById('prediction');
+let cycleTimer = null;
+
+function startPredictionCycle() {
+  stopPredictionCycle();
+  predictionBox.classList.remove('idle');
+  predictionBox.classList.add('cycling');
+  cycleTimer = setInterval(() => {
+    predictionBox.textContent = Math.floor(Math.random() * 10);
+  }, 55);
+}
+
+function stopPredictionCycle() {
+  if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
+}
+
+function showPrediction(digit) {
+  stopPredictionCycle();
+  predictionBox.classList.remove('cycling', 'idle');
+  predictionBox.textContent = digit;
+}
+
+function getNetworkConfig() {
+  return {
+    learningRate: parseFloat(document.getElementById('learningRate').value),
+    epochs: clampInt(document.getElementById('epochs').value, 1, 100000),
+    batchSize: clampInt(document.getElementById('batchSize').value, 1, 100000),
+    dropout: {
+      enabled: document.getElementById('dropoutEnabled').checked,
+      rate: parseFloat(document.getElementById('dropoutRate').value)
+    },
+    regularization: {
+      enabled: document.getElementById('regEnabled').checked,
+      lambda: parseFloat(document.getElementById('lambda').value)
+    },
+    layers: [
+      { type: 'input', size: INPUT_SIZE, width: 1 },
+      ...hiddenLayers.map(l => ({ type: 'hidden', size: l.size, width: l.width })),
+      { type: 'output', size: OUTPUT_SIZE, width: 1 }
+    ]
+  };
+}
+
+async function trainModel(config) {
+}
+
+async function predictDigit(pixels) {
+}
+
+document.getElementById('addLayer').addEventListener('click', () => {
+  hiddenLayers.push({ size: 32, width: 1 });
+  renderArchitecture();
+  renderNetwork();
+});
+
+document.getElementById('dropoutEnabled').addEventListener('change', e => {
+  document.getElementById('dropoutRate').disabled = !e.target.checked;
+});
+document.getElementById('regEnabled').addEventListener('change', e => {
+  document.getElementById('lambda').disabled = !e.target.checked;
+});
+
+document.getElementById('trainBtn').addEventListener('click', () => {
+  trainModel(getNetworkConfig());
+});
+
+document.getElementById('predictBtn').addEventListener('click', async () => {
+  startPredictionCycle();
+  const result = await predictDigit(getPixels());
+  if (result !== undefined && result !== null) showPrediction(result);
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  resetPad();
+  stopPredictionCycle();
+  predictionBox.classList.remove('cycling');
+  predictionBox.classList.add('idle');
+  predictionBox.textContent = '—';
+});
+
+window.setTestAccuracy = setTestAccuracy;
+window.renderAccuracyChart = renderAccuracyChart;
+window.showPrediction = showPrediction;
+window.getNetworkConfig = getNetworkConfig;
+window.trainModel = trainModel;
+window.predictDigit = predictDigit;
+
+renderArchitecture();
+renderNetwork();
+renderAccuracyChart([]);
 </script>
 </body>
 </html>
