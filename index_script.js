@@ -286,7 +286,7 @@ const ctx = pad.getContext('2d');
 let drawing = false;
 
 function resetPad() {
-  ctx.fillStyle = '#111114';
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, pad.width, pad.height);
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -316,7 +316,7 @@ function moveDraw(e) {
   ctx.stroke();
   e.preventDefault();
 }
-has_drawed = false
+let has_drawed = false
 function endDraw() { drawing = false; has_drawed = true }
 
 pad.addEventListener('mousedown', startDraw);
@@ -333,8 +333,36 @@ function getPixels() {
   const sctx = small.getContext('2d');
   sctx.drawImage(pad, 0, 0, 28, 28);
   const data = sctx.getImageData(0, 0, 28, 28).data;
+
+  // Step 1: extract raw grayscale
+  const raw = new Float32Array(784);
+  for (let i = 0; i < 784; i++) raw[i] = data[i * 4] / 255;
+
+  // Step 2: find center of mass of drawn pixels
+  let sumX = 0, sumY = 0, total = 0;
+  for (let y = 0; y < 28; y++) {
+    for (let x = 0; x < 28; x++) {
+      const v = raw[y * 28 + x];
+      sumX += v * x; sumY += v * y; total += v;
+    }
+  }
+  if (total < 1) return raw; // nothing drawn
+  const cx = sumX / total;
+  const cy = sumY / total;
+
+  // Step 3: re-draw pad centered in a fresh 28x28, shifted by center-of-mass offset
+  const centered = document.createElement('canvas');
+  centered.width = 28; centered.height = 28;
+  const cctx = centered.getContext('2d');
+  cctx.fillStyle = '#000000';
+  cctx.fillRect(0, 0, 28, 28);
+  const dx = 14 - cx;
+  const dy = 14 - cy;
+  cctx.drawImage(small, dx, dy, 28, 28);
+
+  const cdata = cctx.getImageData(0, 0, 28, 28).data;
   const out = new Float32Array(784);
-  for (let i = 0; i < 784; i++) out[i] = data[i * 4] / 255;
+  for (let i = 0; i < 784; i++) out[i] = cdata[i * 4] / 255;
   return out;
 }
 /// Model prediction ///

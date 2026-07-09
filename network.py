@@ -110,6 +110,7 @@ async def socket_handler(socket):
                 await training_queue.put({"socket": socket, "data": data.get("message_content")})
             if data.get("message_type") == "DIGIT_DATA":
                 digit_data = data.get("message_content")
+
                 predicted_digit = await Predict_digit(digit_data)
                 await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
     except websockets.exceptions.ConnectionClosed:
@@ -350,16 +351,12 @@ async def train_model(socket, training_data):
 
 
 async def Predict_digit(digit_data):
-    global global_model_weights, global_model_bias
-    
-    if len(global_model_weights) == 0:
-        return 0 #Model has not been trained yet
-
     digit_array = np.array(digit_data).astype(np.float32)
 
     #Normalize prediction data identically to training data
     digit_array = digit_array.reshape(784, 1)
-    test_H = (digit_array - mean_ith_features) / std_ith_features
+    epsilon = 1e-8
+    test_H = (digit_array - mean_ith_features) / (std_ith_features + epsilon)
     
     #Feedforward logic
     for k in range(len(global_model_weights)-1):
@@ -368,7 +365,7 @@ async def Predict_digit(digit_data):
         
     final_M = global_model_weights[-1] @ test_H + global_model_bias[-1]
     
-    predicted_digit = int(np.argmax(final_M, axis=0)[0])
+    predicted_digit = int(np.argmax(final_M))
     return predicted_digit
 
 
