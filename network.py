@@ -66,6 +66,9 @@ np.save(os.path.join(DATA_DIR, "test_Y.npy"), test_Y)
 train_X = np.load("./mnist_data/train_X.npy").astype(np.float32) / 255.0
 train_Y = np.load(os.path.join("./mnist_data", "train_Y.npy")) #[9,3,2,0,...] being digits from 0 to 9
 
+test_X = np.load("./mnist_data/test_X.npy").astype(np.float32) / 255.0
+test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
+
 train_X = train_X.T  #now it's a R^{d * training_size} matrix with d being the dimension of each X
 test_X = test_X.T
 train_size = train_X.shape[1]
