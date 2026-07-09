@@ -1,3 +1,9 @@
+
+
+
+/// Render the visualization of neural network based on users' custom config///
+
+
 const INPUT_SIZE = 784;
 const OUTPUT_SIZE = 10;
 
@@ -85,12 +91,11 @@ function hiddenRow(layer, index) {
   return row;
 }
 
-function clampInt(value, lo, hi) {
+function clampInt(value, min_val, max_val) {
   let n = parseInt(value, 10);
-  if (isNaN(n)) n = lo;
-  return Math.max(lo, Math.min(hi, n));
+  if (isNaN(n)) n = min_val;
+  else return Math.max(min_val, Math.min(max_val, n));
 }
-
 function renderNetwork() {
   const layers = [{ label: 'Input', size: INPUT_SIZE, width: 1 }];
   hiddenLayers.forEach((l, i) => layers.push({ label: 'Layer ' + (i + 1), size: l.size, width: l.width }));
@@ -115,20 +120,20 @@ function renderNetwork() {
     const start = colIndex;
     for (let w = 0; w < layer.width; w++) {
       const x = PAD_X + colIndex * COL_GAP;
-      
+
       const GAP_FOR_ELLIPSIS = 38;
       const block = (n - 2) * CIRCLE_GAP + GAP_FOR_ELLIPSIS;
       const top = centerY - block / 2;
       const circles = [];
-      
+
       for (let i = 0; i < n - 1; i++) {
         circles.push({ x: x, y: top + i * CIRCLE_GAP });
       }
-      
+
       circles.push({ x: x, y: top + (n - 2) * CIRCLE_GAP + GAP_FOR_ELLIPSIS });
-      
+
       const ellipsisY = top + (n - 2) * CIRCLE_GAP + (GAP_FOR_ELLIPSIS / 2) - 5;
-      
+
       columns.push({ x: x, circles: circles, ellipsisY: ellipsisY });
       colIndex++;
     }
@@ -172,7 +177,7 @@ function renderNetwork() {
     '<svg viewBox="0 0 ' + totalWidth + ' ' + HEIGHT + '" preserveAspectRatio="xMidYMid meet" ' +
     'style="min-width:' + Math.max(480, totalWidth) + 'px">' + parts.join('') + '</svg>';
 }
-
+/// Accuracy Chart ///
 let accuracyHistory = [];
 
 function renderAccuracyChart(history) {
@@ -208,10 +213,73 @@ function renderAccuracyChart(history) {
 }
 
 function setTestAccuracy(pct) {
-  document.getElementById('testAcc').textContent =
-    (pct === null || pct === undefined) ? '—' : (Number(pct).toFixed(2) + '%');
+  if (pct == null || pct === undefined) {
+    document.getElementById('testAcc').textContent = '—';
+  } else {
+    document.getElementById('testAcc').textContent = Number(pct).toFixed(2) + '%';
+  }
 }
 
+/// Loss chart///
+let lossHistory = [];
+
+function renderLossChart(history) {
+  lossHistory = history || lossHistory;
+
+  const W = 360, H = 150, L = 34, B = 26, T = 12, Rp = 10;
+  const plotW = W - L - Rp, plotH = H - T - B;
+
+  const maxEpoch = Math.max(1, lossHistory.length ? lossHistory[lossHistory.length - 1].epoch : 1);
+
+  const peakLoss = lossHistory.length ? Math.max(...lossHistory.map(p => p.loss)) : 1;
+  const maxLoss = peakLoss === 0 ? 1 : peakLoss;
+
+  const parts = [];
+
+  parts.push('<line x1="' + L + '" y1="' + T + '" x2="' + L + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
+  parts.push('<line x1="' + L + '" y1="' + (T + plotH) + '" x2="' + (W - Rp) + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
+
+  const gridValues = [0, maxLoss / 2, maxLoss];
+
+  gridValues.forEach(v => {
+
+    const y = T + plotH - (v / maxLoss) * plotH;
+
+    const label = v % 1 === 0 ? v : v.toFixed(2);
+
+    parts.push('<line x1="' + L + '" y1="' + y + '" x2="' + (W - Rp) + '" y2="' + y + '" stroke="var(--line)" stroke-width="0.7"/>');
+    parts.push('<text x="' + (L - 6) + '" y="' + (y + 3) + '" text-anchor="end" font-family="var(--mono)" font-size="9" fill="var(--ink-mute)">' + label + '</text>');
+  });
+
+
+  parts.push('<text x="' + (L - 22) + '" y="' + (T + plotH / 2) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)" transform="rotate(-90 ' + (L - 22) + ' ' + (T + plotH / 2) + ')">Loss</text>');
+  parts.push('<text x="' + (L + plotW / 2) + '" y="' + (H - 4) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)">Epochs</text>');
+
+
+  if (lossHistory.length > 1) {
+    const pts = lossHistory.map(p => {
+      const x = L + (p.epoch / maxEpoch) * plotW;
+      const y = T + plotH - (Math.max(0, p.loss) / maxLoss) * plotH;
+      return x + ',' + y;
+    }).join(' ');
+    parts.push('<polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="1.6"/>');
+  }
+
+  document.getElementById('chartWrap').innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '">' + parts.join('') + '</svg>';
+}
+
+function setLoss(val) {
+  if (val == null || val === undefined) {
+    document.getElementById('trainLoss').textContent = '—';
+  } else {
+    // Cross-entropy loss is a raw float, so we format to 4 decimal 
+    // places for precision instead of adding a '%' sign
+    document.getElementById('trainLoss').textContent = Number(val).toFixed(4);
+  }
+}
+
+/// Pad for user to draw functions///
 const pad = document.getElementById('pad');
 const ctx = pad.getContext('2d');
 let drawing = false;
@@ -247,7 +315,8 @@ function moveDraw(e) {
   ctx.stroke();
   e.preventDefault();
 }
-function endDraw() { drawing = false; }
+has_drawed = false
+function endDraw() { drawing = false; has_drawed = true }
 
 pad.addEventListener('mousedown', startDraw);
 pad.addEventListener('mousemove', moveDraw);
@@ -267,42 +336,50 @@ function getPixels() {
   for (let i = 0; i < 784; i++) out[i] = data[i * 4] / 255;
   return out;
 }
-
+/// Model prediction ///
 const predictionBox = document.getElementById('prediction');
-let cycleTimer = null;
+let isCycling = false;
 
 function startPredictionCycle() {
-  stopPredictionCycle();
   predictionBox.classList.remove('idle');
   predictionBox.classList.add('cycling');
-  cycleTimer = setInterval(() => {
-    predictionBox.textContent = Math.floor(Math.random() * 10);
-  }, 55);
+  isCycling = true;
+  runCycleLoop();
+}
+function runCycleLoop() {
+  if (!isCycling) return;
+  predictionBox.textContent = Math.floor(Math.random() * 10);
+  setTimeout(runCycleLoop, 50);
 }
 
-function stopPredictionCycle() {
-  if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
+function stop_cycle_and_replace(predicted_digit) {
+  isCycling = false;
+  predictionBox.classList.remove('cycling');
+  predictionBox.classList.add('idle');
+  predictionBox.textContent = predicted_digit;
 }
+document.getElementById('predictBtn').addEventListener('click', async () => {
+  if (FINISHED_TRAINING) {
+    startPredictionCycle();
+    predictTriggered()
+  }
+});
 
-function showPrediction(digit) {
-  stopPredictionCycle();
-  predictionBox.classList.remove('cycling', 'idle');
-  predictionBox.textContent = digit;
-}
-
+document.getElementById('clearBtn').addEventListener('click', () => {
+  resetPad();
+  predictionBox.textContent = '—';
+  has_drawed = false;
+});
+//get configuration of the user's network
 function getNetworkConfig() {
   return {
     learningRate: parseFloat(document.getElementById('learningRate').value),
     epochs: clampInt(document.getElementById('epochs').value, 1, 100000),
     batchSize: clampInt(document.getElementById('batchSize').value, 1, 100000),
-    dropout: {
-      enabled: document.getElementById('dropoutEnabled').checked,
-      rate: parseFloat(document.getElementById('dropoutRate').value)
-    },
-    regularization: {
-      enabled: document.getElementById('regEnabled').checked,
-      lambda: parseFloat(document.getElementById('lambda').value)
-    },
+    dropout_enabled: document.getElementById('dropoutEnabled').checked,
+    dropout_rate: parseFloat(document.getElementById('dropoutRate').value),
+    regularization_enabled: document.getElementById('regEnabled').checked,
+    regularization_parameter: parseFloat(document.getElementById('lambda').value),
     layers: [
       { type: 'input', size: INPUT_SIZE, width: 1 },
       ...hiddenLayers.map(l => ({ type: 'hidden', size: l.size, width: l.width })),
@@ -311,11 +388,7 @@ function getNetworkConfig() {
   };
 }
 
-async function trainModel(config) {
-}
 
-async function predictDigit(pixels) {
-}
 
 document.getElementById('addLayer').addEventListener('click', () => {
   hiddenLayers.push({ size: 32, width: 1 });
@@ -334,19 +407,7 @@ document.getElementById('trainBtn').addEventListener('click', () => {
   trainModel(getNetworkConfig());
 });
 
-document.getElementById('predictBtn').addEventListener('click', async () => {
-  startPredictionCycle();
-  const result = await predictDigit(getPixels());
-  if (result !== undefined && result !== null) showPrediction(result);
-});
 
-document.getElementById('clearBtn').addEventListener('click', () => {
-  resetPad();
-  stopPredictionCycle();
-  predictionBox.classList.remove('cycling');
-  predictionBox.classList.add('idle');
-  predictionBox.textContent = '—';
-});
 
 window.setTestAccuracy = setTestAccuracy;
 window.renderAccuracyChart = renderAccuracyChart;
@@ -358,3 +419,62 @@ window.predictDigit = predictDigit;
 renderArchitecture();
 renderNetwork();
 renderAccuracyChart([]);
+
+
+FINISHED_TRAINING = false;
+
+/// Connect to host computer part ///
+const socket = new WebSocket("ws://localhost:6767");
+message_queue = [];
+
+socket.ononpen = () => {
+  while (message_queue.length > 0) {
+    socket.send(message_queue.shift());
+  }
+}
+function send_message(msg) {
+  if (socket.readyState == WebSocket.OPEN) {
+    socket.send(msg);
+
+  }
+  elif(socket.readyState == WebSocket.CONNECTING){
+    message_queue.push(msg);
+  }
+}
+current_config = null;
+function trainingTriggered() {
+  model_config = getNetworkConfig()
+  if (current_config === null) {
+    FINISHED_TRAINING = false;
+    current_config = model_config;
+  }
+  has_changed = JSON.stringify(model_config) !== JSON.stringify(current_config)
+
+  if (has_changed) {
+    FINISHED_TRAINING = false;
+    current_config = model_config;
+    training_message = { message_type = "TRAINING_CONFIG", message_content = model_config };
+    send_message(JSON.stringify(training_message));
+  }
+
+}
+function predictTriggered() {
+  if (FINISHED_TRAINING && has_drawed) {
+    startPredictionCycle();
+    digit_data = getPixels();
+    predict_message = { message_type = "DIGIT_DATA", message_content = digit_data };
+    send_message(JSON.stringify(predict_message));
+  }
+}
+
+socket.onmessage = (event) => {
+  const received_data = JSON.parse(event.data);
+  if (received_data.type == "TRAINING_FINISHED") {
+    FINISHED_TRAINING = true;
+  }
+  if (received_data.type == "PREDICT_FINISHED") {
+    stop_cycle_and_replace(received_data.content)
+  }
+}
+
+

@@ -1,123 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Custom Neural Network — Handwritten Digit Recognition</title>
-<link rel="stylesheet" href="index_css.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom Neural Network — Handwritten Digit Recognition</title>
+  <link rel="stylesheet" href="index_css.css">
 </head>
+
 <body>
-<div class="page">
-  <header class="masthead">
-    <h1>Custom Neural Network</h1>
-    <p>Build, train, and test a handwritten digit recognizer.</p>
-  </header>
+  <div class="page">
+    <header class="masthead">
+      <h1>Custom Neural Network to Recognize Handwritten Digit</h1>
+      <p>Build, train, and test your own handwritten digit recognizer.</p>
+    </header>
 
-  <div class="layout">
-    <div class="col">
-      <section class="card">
-        <h2 class="card-title">Hyperparameters</h2>
-        <div class="field-grid">
-          <label class="toggle"><input type="checkbox" id="dropoutEnabled"> Dropout</label>
-          <label class="toggle"><input type="checkbox" id="regEnabled"> Regularization</label>
+    <div class="layout">
+      <div class="col">
+        <section class="card">
+          <h2 class="card-title">Hyperparameters</h2>
+          <div class="field-grid">
+            <label class="toggle"><input type="checkbox" id="dropoutEnabled"> Dropout</label>
+            <label class="toggle"><input type="checkbox" id="regEnabled"> Regularization</label>
 
-          <div class="field">
-            <label for="dropoutRate">Dropout rate</label>
-            <input type="number" id="dropoutRate" value="0.2" step="0.05" min="0" max="1" disabled>
-          </div>
-          <div class="field">
-            <label for="epochs">Epochs</label>
-            <input type="number" id="epochs" value="20" step="1" min="1" max = "1000">
-          </div>
-
-          <div class="field">
-            <label for="learningRate">Learning rate</label>
-            <input type="number" id="learningRate" value="0.01" step="0.001" min="0">
-          </div>
-          <div class="field">
-            <label for="batchSize">Batch size</label>
-            <select id="batchSize" style="font-family: var(--mono); font-size: 13px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 7px 9px; width: 100; transition: border-color .12s ease, box-shadow .12s ease;">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="9">9</option>
-              <option value="12">12</option>
-              <option value="14">14</option>
-              <option value="18">18</option>
-              <option value="21">21</option>
-              <option value="27">27</option>
-              <option value="28">28</option>
-              <option value="36">36</option>
-              <option value="42">42</option>
-              <option value="54">54</option>
-              <option value="63" selected>63</option>
-              <option value="84">84</option>
-              <option value="108">108</option>
-              <option value="126">126</option>
-              <option value="189">189</option>
-              <option value="252">252</option>
-              <option value="378">378</option>
-              <option value="756">756</option>
-            </select>
-          </div>
-
-          <div class="field span">
-            <label for="lambda">Regularization parameter &lambda;</label>
-            <input type="number" id="lambda" value="0.001" step="0.0001" min="0" disabled>
-          </div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">Architecture</h2>
-        <div class="arch-list" id="archList"></div>        <div style="margin-top:14px">
-          <button class="btn btn-line" id="addLayer">Add another layer</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">Training</h2>
-        <div class="train-bar">
-          <button class="btn btn-solid" id="trainBtn">Train</button>
-          <span class="metric">Test accuracy: <b id="testAcc">—</b></span>
-        </div>
-        <div class="chart-wrap" id="chartWrap"></div>
-      </section>
-    </div>
-
-    <div class="col">
-      <section class="card">
-        <h2 class="card-title">Network</h2>
-        <div class="viz-scroll" id="vizWrap"></div>
-        <p class="viz-hint">Larger layers render more nodes above the ellipsis.</p>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">Test your model</h2>
-        <div class="test-grid">
-          <div class="pad-block">
-            <span class="label">Draw a digit</span>
-            <div class="pad-frame">
-              <canvas id="pad" width="252" height="252"></canvas>
+            <div class="field">
+              <label for="dropoutRate">Dropout rate</label>
+              <input type="number" id="dropoutRate" value="0.2" step="0.05" min="0" max="1" disabled>
             </div>
-            <div class="pad-actions">
-              <button class="btn btn-solid" id="predictBtn">Predict</button>
-              <button class="btn btn-line" id="clearBtn" style="width:auto">Clear</button>
+            <div class="field">
+              <label for="epochs">Epochs</label>
+              <input type="number" id="epochs" value="20" step="1" min="1" max="1000">
+            </div>
+
+            <div class="field">
+              <label for="learningRate">Learning rate</label>
+              <input type="number" id="learningRate" value="0.01" step="0.001" min="0">
+            </div>
+            <div class="field">
+              <label for="batchSize">Batch size</label>
+              <select id="batchSize"
+                style="font-family: var(--mono); font-size: 13px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 7px 9px; width: 100; transition: border-color .12s ease, box-shadow .12s ease;">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="14">14</option>
+                <option value="16">16</option>
+                <option value="28">28</option>
+                <option value="49">49</option>
+                <option value="56" selected>56</option>
+                <option value="98">98</option>
+                <option value="112">112</option>
+                <option value="196">196</option>
+                <option value="392">392</option>
+                <option value="784">784</option>
+              </select>
+            </div>
+
+            <div class="field span">
+              <label for="lambda">Regularization parameter &lambda;</label>
+              <input type="number" id="lambda" value="0.001" step="0.0001" min="0" disabled>
             </div>
           </div>
-          <div class="readout">
-            <span class="label">Your model prediction is</span>
-            <div class="digit-box idle" id="prediction">—</div>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">Architecture</h2>
+          <div class="arch-list" id="archList"></div>
+          <div style="margin-top:14px">
+            <button class="btn btn-line" id="addLayer">Add another layer</button>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">Training</h2>
+          <div class="train-bar">
+            <button class="btn btn-solid" id="trainBtn">Train</button>
+            <span class="metric">Test accuracy: <b id="testAcc">—</b></span>
+            <span class="metric">Loss: <b id="trainLoss">—</b></span>
+          </div>
+          <div class="chart-wrap" id="chartWrap"></div>
+          <div class="chart-wrap" id="lossChartWrap"></div>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="card">
+          <h2 class="card-title">Network</h2>
+          <div class="viz-scroll" id="vizWrap"></div>
+          <p class="viz-hint">Larger layers render more nodes above the ellipsis.</p>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">Test your model</h2>
+          <div class="test-grid">
+            <div class="pad-block">
+              <span class="label">Draw a digit</span>
+              <div class="pad-frame">
+                <canvas id="pad" width="252" height="252"></canvas>
+              </div>
+              <div class="pad-actions">
+                <button class="btn btn-solid" id="predictBtn">Predict</button>
+                <button class="btn btn-line" id="clearBtn" style="width:auto">Clear</button>
+              </div>
+            </div>
+            <div class="readout">
+              <span class="label">Your model prediction is</span>
+              <div class="digit-box idle" id="prediction">—</div>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="index_script.js"></script>
+  <script src="index_script.js"></script>
 </body>
+
 </html>
