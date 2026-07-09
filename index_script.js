@@ -448,8 +448,7 @@ function send_message(msg) {
 current_config = null;
 function trainingTriggered() {
   const model_config = getNetworkConfig();
-  // Compute has_changed BEFORE touching current_config; on first call
-  // current_config is null so JSON.stringify(null) !== the config string → always true.
+
   const has_changed = JSON.stringify(model_config) !== JSON.stringify(current_config);
 
   if (has_changed) {
