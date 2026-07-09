@@ -395,34 +395,21 @@ input:disabled {
 
 /* NEURON FIRING ANIMATIONS */
 
-@keyframes flowForward {
+@keyframes edgePulse {
+  from {
+    stroke-dashoffset: 16;
+  }
+
   to {
-    stroke-dashoffset: -20;
+    stroke-dashoffset: 0;
   }
 }
 
-@keyframes flowBackward {
-  to {
-    stroke-dashoffset: 20;
-  }
-}
-
-.edge-flow-forward {
-  stroke-dasharray: 4 8;
-  animation: flowForward 0.4s linear infinite;
-  stroke: var(--accent);
-  /* Blueish glow for feedforward */
-  stroke-width: 2px !important;
-  opacity: 0.8 !important;
-}
-
-.edge-flow-backward {
-  stroke-dasharray: 4 8;
-  animation: flowBackward 0.4s linear infinite;
-  stroke: #f43f5e;
-  /* Red/Pink glow for backprop error calculation */
-  stroke-width: 2px !important;
-  opacity: 0.8 !important;
+.edge-pulse {
+  stroke-dasharray: 4 12;
+  animation: edgePulse 0.5s linear infinite;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1.5px;
 }
 
 /* ── Onboarding spotlight ──────────────────────────────────────── */

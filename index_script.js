@@ -494,7 +494,7 @@ function trainingTriggered() {
 
     const training_message = { message_type: "TRAINING_CONFIG", message_content: model_config };
     send_message(JSON.stringify(training_message));
-    startNetworkAnimation('train');
+    startNetworkAnimation();
   }
   else {
     showToast("You haven't update your network structure.", 'warn');
@@ -506,7 +506,7 @@ function predictTriggered() {
   const digit_data = Array.from(getPixels());
   const predict_message = { message_type: "DIGIT_DATA", message_content: digit_data };
   send_message(JSON.stringify(predict_message));
-  startNetworkAnimation('predict');
+  startNetworkAnimation();
 }
 
 
@@ -538,58 +538,29 @@ socket.onmessage = (event) => {
 /*Network Firing Animation Controller*/
 let networkAnimTimer = null;
 let isNetworkAnimating = false;
+let _animEdges = [];
 
-function startNetworkAnimation(mode = 'train') {
-  // Stop any existing animation first
+function startNetworkAnimation() {
   stopNetworkAnimation();
-
-  // Find all SVG lines/paths used for edges in the visualization
-  const edges = document.querySelectorAll('#vizWrap svg line, #vizWrap svg path');
-  if (edges.length === 0) return;
-
+  const all = Array.from(document.querySelectorAll('#vizWrap svg line'));
+  if (!all.length) return;
   isNetworkAnimating = true;
-  let phase = 'forward';
 
   function tick() {
-    if (!isNetworkAnimating) return; // Break loop if stopped
-
-    if (phase === 'forward') {
-      edges.forEach(e => {
-        e.classList.add('edge-flow-forward');
-        e.classList.remove('edge-flow-backward');
-      });
-
-      if (mode === 'train') {
-        phase = 'backward';
-        networkAnimTimer = setTimeout(tick, 800); // Feedforward for 800ms, then swap
-      } else {
-        // If just predicting, keep flowing forward continuously
-        networkAnimTimer = setTimeout(tick, 800);
-      }
-    } else {
-      // Backpropagation phase (Only happens during 'train' mode)
-      edges.forEach(e => {
-        e.classList.add('edge-flow-backward');
-        e.classList.remove('edge-flow-forward');
-      });
-
-      phase = 'forward';
-      networkAnimTimer = setTimeout(tick, 800); // Backprop for 800ms, then swap
-    }
+    if (!isNetworkAnimating) return;
+    _animEdges.forEach(e => e.classList.remove('edge-pulse'));
+    _animEdges = [...all].sort(() => Math.random() - 0.5).slice(0, 2);
+    _animEdges.forEach(e => e.classList.add('edge-pulse'));
+    networkAnimTimer = setTimeout(tick, 500);
   }
-
-  tick(); // Start loop
-
-
+  tick();
 }
 
 function stopNetworkAnimation() {
   isNetworkAnimating = false;
   if (networkAnimTimer) clearTimeout(networkAnimTimer);
-
-  // Strip animation classes to return to static state
-  const edges = document.querySelectorAll('#vizWrap svg line, #vizWrap svg path');
-  edges.forEach(e => e.classList.remove('edge-flow-forward', 'edge-flow-backward'));
+  _animEdges.forEach(e => e.classList.remove('edge-pulse'));
+  _animEdges = [];
 }
 /* ── Onboarding ─────────────────────────────────────────────────
    showOnboarding()   – called once on page load
