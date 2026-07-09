@@ -360,9 +360,17 @@ function stop_cycle_and_replace(predicted_digit) {
   predictionBox.textContent = predicted_digit;
 }
 document.getElementById('predictBtn').addEventListener('click', () => {
-  if (FINISHED_TRAINING) {
-    predictTriggered();
+
+  if (!FINISHED_TRAINING) {
+    showToast('Train your model first before predicting.', 'warn');
+    return;
   }
+  if (!has_drawed) {
+    showToast('Draw a digit on the canvas first.', 'warn');
+    return;
+  }
+  predictTriggered();
+
 });
 
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -452,24 +460,27 @@ function trainingTriggered() {
   const has_changed = JSON.stringify(model_config) !== JSON.stringify(current_config);
 
   if (has_changed) {
+    print("training triggered")
     FINISHED_TRAINING = false;
     current_config = model_config;
+
     const training_message = { message_type: "TRAINING_CONFIG", message_content: model_config };
     send_message(JSON.stringify(training_message));
     startNetworkAnimation('train');
   }
-}
-function predictTriggered() {
-  if (FINISHED_TRAINING && has_drawed) {
-    startPredictionCycle();
-    // Array.from converts Float32Array → plain Array so JSON.stringify produces [0.1, 0.4, ...]
-    // instead of {} (which is what typed arrays silently serialize to).
-    const digit_data = Array.from(getPixels());
-    const predict_message = { message_type: "DIGIT_DATA", message_content: digit_data };
-    send_message(JSON.stringify(predict_message));
-    startNetworkAnimation('predict');
+  else {
+    showToast("You haven't update your network structure.", 'warn');
+    return;
   }
 }
+function predictTriggered() {
+  startPredictionCycle();
+  const digit_data = Array.from(getPixels());
+  const predict_message = { message_type: "DIGIT_DATA", message_content: digit_data };
+  send_message(JSON.stringify(predict_message));
+  startNetworkAnimation('predict');
+}
+
 
 socket.onmessage = (event) => {
   const received_data = JSON.parse(event.data);
@@ -538,6 +549,8 @@ function startNetworkAnimation(mode = 'train') {
   }
 
   tick(); // Start loop
+
+
 }
 
 function stopNetworkAnimation() {
@@ -600,3 +613,17 @@ function dismissOnboarding() {
 }
 
 showOnboarding();
+
+
+// Show error //
+function showToast(message, type = 'info') {
+  const t = document.createElement('div');
+  t.className = 'toast toast-' + type;
+  t.textContent = message;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('toast-visible'));
+  setTimeout(() => {
+    t.classList.remove('toast-visible');
+    setTimeout(() => t.remove(), 300);
+  }, 3500);
+}

@@ -114,6 +114,7 @@ async def socket_handler(socket):
                 await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
     except websockets.exceptions.ConnectionClosed:
         pass
+
             
 training_queue = asyncio.Queue()
 async def modelTraining_task():
@@ -355,7 +356,7 @@ async def Predict_digit(digit_data):
         return 0 #Model has not been trained yet
 
     digit_array = np.array(digit_data).astype(np.float32)
-    
+
     #Normalize prediction data identically to training data
     digit_array = digit_array.reshape(784, 1)
     test_H = (digit_array - mean_ith_features) / std_ith_features
