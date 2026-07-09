@@ -460,7 +460,7 @@ function trainingTriggered() {
   const has_changed = JSON.stringify(model_config) !== JSON.stringify(current_config);
 
   if (has_changed) {
-    print("training triggered")
+    console.log("training triggered")
     FINISHED_TRAINING = false;
     current_config = model_config;
 
