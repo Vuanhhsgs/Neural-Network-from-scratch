@@ -81,14 +81,17 @@ test_X = np.load(os.path.join("./mnist_data", "test_X.npy")).astype(np.float32) 
 test_X = test_X.T
 test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
 
-# Normalize training data (Vectorized to prevent 15 minute python loop bottleneck)
+#Normalize training data (Vectorized to prevent 15 minute python loop bottleneck)
 mean_ith_features = np.mean(train_X, axis=1, keepdims=True)
 std_ith_features = np.std(train_X, axis=1, keepdims=True)
-std_ith_features[std_ith_features == 0] = 1 # Prevent division by zero
-train_X = (train_X - mean_ith_features) / std_ith_features
+std_ith_features[std_ith_features == 0] = 1 #prevent division by zero
+train_X -= mean_ith_features
+train_X /= std_ith_features
 
-# Normalize test data identically
-test_X = (test_X - mean_ith_features) / std_ith_features
+
+#Normalize test data similarly
+test_X -= mean_ith_features
+test_X /= std_ith_features
 
 
 training_queue = asyncio.Queue()
