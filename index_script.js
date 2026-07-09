@@ -219,7 +219,7 @@ function setTestAccuracy(pct) {
     document.getElementById('testAcc').textContent = Number(pct).toFixed(2) + '%';
   }
 }
-
+renderAccuracyChart(accuracyHistory)
 /// Loss chart///
 let lossHistory = [];
 
@@ -265,20 +265,19 @@ function renderLossChart(history) {
     parts.push('<polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="1.6"/>');
   }
 
-  document.getElementById('chartWrap').innerHTML =
+  document.getElementById('lossChartWrap').innerHTML =
     '<svg viewBox="0 0 ' + W + ' ' + H + '">' + parts.join('') + '</svg>';
 }
 
 function setLoss(val) {
   if (val == null || val === undefined) {
     document.getElementById('trainLoss').textContent = '—';
-  } else {
-    // Cross-entropy loss is a raw float, so we format to 4 decimal 
-    // places for precision instead of adding a '%' sign
+  }
+  else {
     document.getElementById('trainLoss').textContent = Number(val).toFixed(4);
   }
 }
-
+renderLossChart(lossHistory)
 /// Pad for user to draw functions///
 const pad = document.getElementById('pad');
 const ctx = pad.getContext('2d');
@@ -437,7 +436,7 @@ function send_message(msg) {
     socket.send(msg);
 
   }
-  elif(socket.readyState == WebSocket.CONNECTING){
+  else if (socket.readyState == WebSocket.CONNECTING) {
     message_queue.push(msg);
   }
 }
@@ -453,8 +452,10 @@ function trainingTriggered() {
   if (has_changed) {
     FINISHED_TRAINING = false;
     current_config = model_config;
-    training_message = { message_type = "TRAINING_CONFIG", message_content = model_config };
+    training_message = { message_type: "TRAINING_CONFIG", message_content: model_config };
     send_message(JSON.stringify(training_message));
+
+    startNetworkAnimation('train');
   }
 
 }
@@ -462,8 +463,10 @@ function predictTriggered() {
   if (FINISHED_TRAINING && has_drawed) {
     startPredictionCycle();
     digit_data = getPixels();
-    predict_message = { message_type = "DIGIT_DATA", message_content = digit_data };
+    predict_message = { message_type: "DIGIT_DATA", message_content: digit_data };
     send_message(JSON.stringify(predict_message));
+
+    startNetworkAnimation('predict');
   }
 }
 
@@ -471,10 +474,76 @@ socket.onmessage = (event) => {
   const received_data = JSON.parse(event.data);
   if (received_data.type == "TRAINING_FINISHED") {
     FINISHED_TRAINING = true;
+    stopNetworkAnimation();
   }
   if (received_data.type == "PREDICT_FINISHED") {
-    stop_cycle_and_replace(received_data.content)
+    stop_cycle_and_replace(received_data.content);
+    stopNetworkAnimation();
+  }
+  if (received_data.type == "LOSS_UPDATE") {
+    lossHistory.push(received_data.content);
+    renderLossChart(lossHistory);
+    setLoss(received_data.content.loss);
+  }
+  if (received_data.type == "ACCURACY_UPDATE") {
+    accuracyHistory.push(received_data.content);
+    renderAccuracyChart(accuracyHistory);
+    setTestAccuracy(received_data.content.acc);
   }
 }
 
 
+/*Network Firing Animation Controller*/
+let networkAnimTimer = null;
+let isNetworkAnimating = false;
+
+function startNetworkAnimation(mode = 'train') {
+  // Stop any existing animation first
+  stopNetworkAnimation();
+
+  // Find all SVG lines/paths used for edges in the visualization
+  const edges = document.querySelectorAll('#vizWrap svg line, #vizWrap svg path');
+  if (edges.length === 0) return;
+
+  isNetworkAnimating = true;
+  let phase = 'forward';
+
+  function tick() {
+    if (!isNetworkAnimating) return; // Break loop if stopped
+
+    if (phase === 'forward') {
+      edges.forEach(e => {
+        e.classList.add('edge-flow-forward');
+        e.classList.remove('edge-flow-backward');
+      });
+
+      if (mode === 'train') {
+        phase = 'backward';
+        networkAnimTimer = setTimeout(tick, 800); // Feedforward for 800ms, then swap
+      } else {
+        // If just predicting, keep flowing forward continuously
+        networkAnimTimer = setTimeout(tick, 800);
+      }
+    } else {
+      // Backpropagation phase (Only happens during 'train' mode)
+      edges.forEach(e => {
+        e.classList.add('edge-flow-backward');
+        e.classList.remove('edge-flow-forward');
+      });
+
+      phase = 'forward';
+      networkAnimTimer = setTimeout(tick, 800); // Backprop for 800ms, then swap
+    }
+  }
+
+  tick(); // Start loop
+}
+
+function stopNetworkAnimation() {
+  isNetworkAnimating = false;
+  if (networkAnimTimer) clearTimeout(networkAnimTimer);
+
+  // Strip animation classes to return to static state
+  const edges = document.querySelectorAll('#vizWrap svg line, #vizWrap svg path');
+  edges.forEach(e => e.classList.remove('edge-flow-forward', 'edge-flow-backward'));
+}

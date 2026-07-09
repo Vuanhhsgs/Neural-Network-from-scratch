@@ -67,60 +67,62 @@ train_X = np.load("./mnist_data/train_X.npy").astype(np.float32) / 255.0
 train_Y = np.load(os.path.join("./mnist_data", "train_Y.npy")) #[9,3,2,0,...] being digits from 0 to 9
 
 train_X = train_X.T  #now it's a R^{d * training_size} matrix with d being the dimension of each X
-
+test_X = test_X.T
 train_size = train_X.shape[1]
-
-test_X = np.load(os.path.join("./mnist_data", "test_X.npy"))
-test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
-#Normalize training data
-mean_ith_features = []
-std_ith_features = []
-for i in range(784):
-    mean_ith_features.append(np.mean(train_X[i])) 
-    std_ith_features.append(np.std(train_X[i]))
-for i in range(784):
-    for j in range(len(train_X[i])):
-        train_X[i][j] = (train_X[i][j]-mean_ith_features[i])/std_ith_features
-
-
-
-
-
-
-"""
-
 
 import asyncio
 import json
 import websockets
-training_queue = asyncio.queue()
+
+test_X = np.load(os.path.join("./mnist_data", "test_X.npy")).astype(np.float32) / 255.0
+test_X = test_X.T
+test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
+
+# Normalize training data (Vectorized to prevent 15 minute python loop bottleneck)
+mean_ith_features = np.mean(train_X, axis=1, keepdims=True)
+std_ith_features = np.std(train_X, axis=1, keepdims=True)
+std_ith_features[std_ith_features == 0] = 1 # Prevent division by zero
+train_X = (train_X - mean_ith_features) / std_ith_features
+
+# Normalize test data identically
+test_X = (test_X - mean_ith_features) / std_ith_features
+
+
+training_queue = asyncio.Queue()
+
+# Global variables for Prediction function
+global_model_weights = []
+global_model_bias = []
+
 async def socket_handler(socket):
     try:
         async for message in socket:
             data = json.loads(message)
             if data.get("message_type") == "TRAINING_CONFIG":
-                await training_queue.push({"socket": socket, "data": data.get("message_content")})
+                await training_queue.put({"socket": socket, "data": data.get("message_content")})
             if data.get("message_type") == "DIGIT_DATA":
                 digit_data = data.get("message_content")
-                predicted_digit = Predict_digit(digit_data)
-                socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
+                predicted_digit = await Predict_digit(digit_data)
+                await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
+    except websockets.exceptions.ConnectionClosed:
+        pass
             
 async def modelTraining_task():
     while True:
         training_request = await training_queue.get()
-        socket = training_queue.get("socket")
-        training_data = training_queue.get("data")
+        socket = training_request["socket"]
+        training_data = training_request["data"]
         await train_model(socket, training_data) #In this function we will send the model accuracy after every epoch
-        socket.send(json.dumps({"type": "TRAINING_FINISHED"}))
+        await socket.send(json.dumps({"type": "TRAINING_FINISHED"}))
                
-
 
 async def main():
     asyncio.create_task(modelTraining_task())
     async with websockets.serve(socket_handler,"0.0.0.0", 6767):
-        await asyncio.future()
+        await asyncio.Future()
 
-def train_model(socket, training_data):
+async def train_model(socket, training_data):
+    global global_model_weights, global_model_bias
     epochs = training_data.get("epochs")
     batchSize = training_data.get("batchSize")
     dropout_enabled = training_data.get("dropout_enabled")
@@ -133,52 +135,71 @@ def train_model(socket, training_data):
     #Start training
 
     network_structure = []     #it will look sth like [784 512 512 512 256 256 10] for example 
-    for layer in layers.key():
-        for i in layer["width"]:
+    for layer in layers:
+        for i in range(layer["width"]):
             network_structure.append(layer["size"]) 
+            
     #weight and parameter initialization
-    model_bias = np.full(len(network_structure)-1, 0.01)
-
+    model_bias = []
     model_weights = []
     for i in range(1, len(network_structure)):
-        initial_weight = math.random.randn(network_structure[i], network_structure[i-1]) * math.sqrt(2/network_structure[i-1])
+        # bias must be column vector to broadcast correctly: M = W@H + B
+        model_bias.append(np.full((network_structure[i], 1), 0.01))
+        initial_weight = np.random.randn(network_structure[i], network_structure[i-1]) * math.sqrt(2/network_structure[i-1])
         model_weights.append(initial_weight)
-    model_weights = np.array(model_weights)
 
 
     #start training 
     number_of_batches = math.ceil(train_size / batchSize)
     
-    for i in epochs:
-        #hidden layer in feedforward part
-
+    for epoch in range(epochs):
         #sample data        
-        random_index = np.random.permutation(len(train_X[0]))
+        random_index = np.random.permutation(train_size)
         this_train_X = train_X[:, random_index]
-        this_train_Y = train_Y[:, random_index]
+        this_train_Y = train_Y[random_index]
+        
+        epoch_total_loss = 0
 
         for j in range(0, batchSize*number_of_batches, batchSize):
-            if(j == batchSize*(number_of_batches-1)):
+            if(j >= train_size):
+                break
+                
+            if(j + batchSize >= train_size):
                 batch_matrix_X = this_train_X[:, j:]
-                batch_Y = this_train_Y[:, j:]
+                batch_Y = this_train_Y[j:]
                 true_batchSize = train_size - j
             else:
-                batch_matrix_X = train_X[:, j:j+batchSize]
-                batch_Y = this_train_Y[:, j:j+batchSize]
+                batch_matrix_X = this_train_X[:, j:j+batchSize]
+                batch_Y = this_train_Y[j:j+batchSize]
                 true_batchSize = batchSize
+                
+            #sum of W_{i,j}^2
+            L2_total_weight = 0
+            if regularization_enabled:
+                for W in model_weights:
+                    L2_total_weight += np.sum(np.square(W))
+
             this_batch_M = [] 
             this_batch_N = []
             this_batch_H = [] #Hidden layer
+            this_batch_dropout = [] # To keep track of dropout matrices for backprop
+            
             first_M = model_weights[0] @ batch_matrix_X + model_bias[0] #M_0 = W_0X + B_0; X,M,W lies in R^{d*B}, R^{k*B}, R^{k*d} 
             this_batch_M.append(first_M)
 
-            first_N = np.maximum(0, M) # N = ReLu(M)
+            first_N = np.maximum(0, first_M) # N = ReLu(M)
             this_batch_N.append(first_N)
+            
+            if dropout_enabled:
+                rng = np.random.default_rng()
+                dropout_matrix = rng.choice([0,1], size = first_N.shape, p = [dropout_rate, 1-dropout_rate]) 
+                this_batch_dropout.append(dropout_matrix)
+                first_H = first_N * dropout_matrix   # H_0 = Dropout(N_0)
+                first_H *= 1/(1-dropout_rate)               
+            else:
+                this_batch_dropout.append(np.ones(first_N.shape))
+                first_H = first_N
 
-            rng = np.random.default_rng()
-            dropout_matrix  = rng.choice([0,1], size = first_N.shape, p = [dropout_rate, 1-dropout_rate]) 
-            first_H = first_N * dropout_matrix   # H_0 = Dropout(N_0)
-            first_H *= 1/(1-dropout_rate)
             this_batch_H.append(first_H)
             
             # W_0 lies in R^{k*d}, X lies in R^{d*B} then B_0 lies in R^{k*B}
@@ -193,43 +214,153 @@ def train_model(socket, training_data):
                 this_batch_M.append(M)
                 N = np.maximum(M,0)
                 this_batch_N.append(N)
-                dropout_matrix = rng.choice([0,1], size = first_N.shape, p = [dropout_rate, 1-dropout_rate]) 
-                H = dropout_matrix * N  
-                H *= 1/(1-dropout_rate)
+                
+                if dropout_enabled:
+                    rng = np.random.default_rng()
+                    dropout_matrix = rng.choice([0,1], size = N.shape, p = [dropout_rate, 1-dropout_rate]) 
+                    this_batch_dropout.append(dropout_matrix)
+                    H = dropout_matrix * N  
+                    H *= 1/(1-dropout_rate)
+                else: 
+                    this_batch_dropout.append(np.ones(N.shape))
+                    H = N
                 this_batch_H.append(H)
-            this_batch_M = np.vectorize(this_batch_M) #this_batch_M :[M0, M1, ..., M_{n-1}]
-            this_batch_N = np.vectorize(this_batch_N) #this_batch_N :[N0, N1, ..., N_{n-1}]
-            this_batch_H = np.vectorize(this_batch_H) #this_batch_H :[H0, H1, ..., H_{n-1}]
-
 
             #from H_{n-1} to calculating loss function:
             #the last layer are: M_n = W_n * H_(n-1) + B_n, and note that len(model_weights) = n+1  
-            W_n = model_weights[len(model_weights)-1]   
-            H_n_minus_1 = this_batch_H[len(model_weights)-2]
-            B_n =  model_bias[len(model_weights)-1]
+            W_n = model_weights[-1]   
+            if len(model_weights) > 1:
+                H_n_minus_1 = this_batch_H[-1]
+            else:
+                H_n_minus_1 = batch_matrix_X
+                
+            B_n =  model_bias[-1]
             last_M = W_n @ H_n_minus_1 + B_n
-
-
-
-
-
-         
-
             
+            #Stabilization to prevent overflow
+            last_M_shifted = last_M - np.max(last_M, axis=0)
+            exp_M = np.exp(last_M_shifted)
+            predicted_Y = exp_M / exp_M.sum(axis=0)
+            
+            Loss = 0
+            for i in range(true_batchSize): #0 to B-1 since batch_Y lies in R^{1*B}
+                true_digit = batch_Y[i] #0 to 9
+                Loss -= np.log( predicted_Y[true_digit, i] + 1e-9 ) #cross entropy loss requires negative log
+                
+            Loss /= true_batchSize
+            if regularization_enabled:
+                Loss += L2_total_weight * regularization_parameter
+            epoch_total_loss += Loss
 
 
+            #Backpropagation 
+            
+            #1.dL/dM_last
+            dL_dM = np.copy(predicted_Y)
+            for i in range(true_batchSize):
+                dL_dM[batch_Y[i], i] -= 1
+            dL_dM /= true_batchSize
 
+            dL_dW = []
+            dL_dB = []
+
+            #2.dl/dW and dL/dB
+            dL_dW.append(dL_dM @ H_n_minus_1.T)
+            dL_dB.append(np.sum(dL_dM, axis=1, keepdims=True))
+
+            # 3.dL/dH based on dL/dM
+            dL_dH = W_n.T @ dL_dM
+
+            #Backprogating through hidden layers
+            for k in range(len(model_weights)-2, -1, -1):
+                # Calculate dL/dN
+                if dropout_enabled:
+                    dL_dN = dL_dH * this_batch_dropout[k] * (1 / (1 - dropout_rate))
+                else:
+                    dL_dN = dL_dH
+                    
+                #Calculate dL/dM(ReLU derivative)
+                dL_dM_k = dL_dN * (this_batch_M[k] > 0)
+                
+                #Setup H_prev
+                if k > 0:
+                    H_prev = this_batch_H[k-1]
+                else:
+                    H_prev = batch_matrix_X
+                    
+                #Calculate dL/dW and dL/db
+                dL_dW.insert(0, dL_dM_k @ H_prev.T)
+                dL_dB.insert(0, np.sum(dL_dM_k, axis=1, keepdims=True))
+                
+                #Calculate dL/dH 
+                if k > 0:
+                    dL_dH = model_weights[k].T @ dL_dM_k
+
+            #4. Update Weights and Bias 
+            for k in range(len(model_weights)):
+                grad_W = dL_dW[k]
+                if regularization_enabled:
+                    grad_W += 2 * regularization_parameter * model_weights[k]
+                    
+                model_weights[k] -= learningRate * grad_W
+                model_bias[k] -= learningRate * dL_dB[k]
+
+        #End epoch and caculate avg loss
+        avg_loss = epoch_total_loss / number_of_batches
         
-
-
-
+        #Send loss socket to update chart
+        await socket.send(json.dumps({
+            "type": "LOSS_UPDATE", 
+            "content": {"epoch": epoch+1, "loss": float(avg_loss)}
+        }))
         
+        #Test the newly updated weight on test_X and test_Y then send this data back to browser
+        test_batchSize = test_X.shape[1]
+        test_H = test_X
+        for k in range(len(model_weights)-1):
+            M = model_weights[k] @ test_H + model_bias[k]
+            test_H = np.maximum(0, M)
+            
+            
+        final_M = model_weights[-1] @ test_H + model_bias[-1]
+        predicted_test_Y = np.argmax(final_M, axis=0)
+        
+        correct_predictions = np.sum(predicted_test_Y == test_Y)
+        accuracy = (correct_predictions / test_batchSize) * 100
+        
+        #Send accuracy socket to update chart
+        await socket.send(json.dumps({
+            "type": "ACCURACY_UPDATE", 
+            "content": {"epoch": epoch+1, "acc": float(accuracy)}
+        }))
+
+    #Save to global scope for prediction later
+    global_model_weights = model_weights
+    global_model_bias = model_bias
+
+
+async def Predict_digit(digit_data):
+    global global_model_weights, global_model_bias
     
+    if len(global_model_weights) == 0:
+        return 0 #Model has not been trained yet
+
+    digit_array = np.array(digit_data).astype(np.float32)
+    
+    #Normalize prediction data identically to training data
+    digit_array = digit_array.reshape(784, 1)
+    test_H = (digit_array - mean_ith_features) / std_ith_features
+    
+    #Feedforward logic
+    for k in range(len(global_model_weights)-1):
+        M = global_model_weights[k] @ test_H + global_model_bias[k]
+        test_H = np.maximum(0, M)
+        
+    final_M = global_model_weights[-1] @ test_H + global_model_bias[-1]
+    
+    predicted_digit = int(np.argmax(final_M, axis=0)[0])
+    return predicted_digit
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-async def Predict_digit(digit_data):
-    return 67
-"""
