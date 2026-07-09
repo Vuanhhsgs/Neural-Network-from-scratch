@@ -543,26 +543,18 @@ let _animEdges = [];
 
 function startNetworkAnimation() {
   stopNetworkAnimation();
-  const all = Array.from(document.querySelectorAll('#vizWrap svg line'));
-  if (!all.length) return;
+  _animEdges = Array.from(document.querySelectorAll('#vizWrap svg line'));
+  _animEdges.forEach(e => e.classList.add('edge-pulse'));
   isNetworkAnimating = true;
-
-  function tick() {
-    if (!isNetworkAnimating) return;
-    _animEdges.forEach(e => e.classList.remove('edge-pulse'));
-    _animEdges = [...all].sort(() => Math.random() - 0.5).slice(0, 2);
-    _animEdges.forEach(e => e.classList.add('edge-pulse'));
-    networkAnimTimer = setTimeout(tick, 500);
-  }
-  tick();
 }
 
 function stopNetworkAnimation() {
   isNetworkAnimating = false;
-  if (networkAnimTimer) clearTimeout(networkAnimTimer);
+  clearTimeout(networkAnimTimer);
   _animEdges.forEach(e => e.classList.remove('edge-pulse'));
   _animEdges = [];
 }
+
 /* ── Onboarding ─────────────────────────────────────────────────
    showOnboarding()   – called once on page load
    _positionTip()     – keeps the tooltip anchored above the button
