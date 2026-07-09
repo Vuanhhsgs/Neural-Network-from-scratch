@@ -113,6 +113,8 @@ async def socket_handler(socket):
 
                 predicted_digit = await Predict_digit(digit_data)
                 await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
+                await asyncio.sleep(0.5)
+
     except websockets.exceptions.ConnectionClosed:
         pass
 
@@ -324,6 +326,7 @@ async def train_model(socket, training_data):
             "type": "LOSS_UPDATE", 
             "content": {"epoch": epoch+1, "loss": float(avg_loss)}
         }))
+        await asyncio.sleep(0.5)
         
         #Test the newly updated weight on test_X and test_Y then send this data back to browser
         test_batchSize = test_X.shape[1]
@@ -344,6 +347,7 @@ async def train_model(socket, training_data):
             "type": "ACCURACY_UPDATE", 
             "content": {"epoch": epoch+1, "acc": float(accuracy)}
         }))
+        await asyncio.sleep(0.5)
 
     #Save to global scope for prediction later
     global_model_weights = model_weights
