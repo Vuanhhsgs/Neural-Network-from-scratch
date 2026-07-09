@@ -1,4 +1,4 @@
-  :root {
+:root {
     --bg: #ffffff;
     --grid: #f2f2f3;
     --surface: #ffffff;
@@ -416,100 +416,88 @@
     stroke-width: 2px !important;
     opacity: 0.8 !important;
   }
+/* ── Onboarding spotlight ──────────────────────────────────────── */
 
+/* Full-screen click absorber; sits below the highlighted button   */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  cursor: not-allowed;
+}
 
-
-
-  /* ── Onboarding spotlight ──────────────────────────────────────── */
-
-  /* Full-screen click absorber; sits below the highlighted button   */
-  .onboarding-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-    cursor: not-allowed;
-  }
-
-  /*
+/*
   The button is lifted to z-index 1001 so it's above the overlay.
   The huge box-shadow (0 0 0 9999px ...) bleeds out from the button
   and darkens the rest of the page visually without needing a separate
   mask element or clip-path math.
 */
-  .onboarding-spotlight {
-    position: relative;
-    z-index: 1001;
-    border-radius: 5px;
+.onboarding-spotlight {
+  position: relative;
+  z-index: 1001;
+  border-radius: 5px;
+  box-shadow:
+    0 0 0 4px var(--accent),
+    0 0 20px 6px rgba(79, 70, 229, 0.3),
+    0 0 0 9999px rgba(0, 0, 0, 0.55);
+  animation: ob-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ob-pulse {
+  0%, 100% {
     box-shadow:
       0 0 0 4px var(--accent),
-      0 0 20px 6px rgba(79, 70, 229, 0.3),
+      0 0 20px 6px rgba(79, 70, 229, 0.2),
       0 0 0 9999px rgba(0, 0, 0, 0.55);
-    animation: ob-pulse 1.6s ease-in-out infinite;
   }
-
-  @keyframes ob-pulse {
-
-    0%,
-    100% {
-      box-shadow:
-        0 0 0 4px var(--accent),
-        0 0 20px 6px rgba(79, 70, 229, 0.2),
-        0 0 0 9999px rgba(0, 0, 0, 0.55);
-    }
-
-    50% {
-      box-shadow:
-        0 0 0 4px var(--accent),
-        0 0 28px 10px rgba(79, 70, 229, 0.45),
-        0 0 0 9999px rgba(0, 0, 0, 0.55);
-    }
+  50% {
+    box-shadow:
+      0 0 0 4px var(--accent),
+      0 0 28px 10px rgba(79, 70, 229, 0.45),
+      0 0 0 9999px rgba(0, 0, 0, 0.55);
   }
+}
 
-  /* Tooltip bubble */
-  .onboarding-tip {
-    position: fixed;
-    z-index: 1002;
-    background: var(--ink);
-    color: #fff;
-    font-family: var(--sans);
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1.4;
-    padding: 10px 16px;
-    border-radius: 8px;
-    white-space: nowrap;
-    pointer-events: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+/* Tooltip bubble */
+.onboarding-tip {
+  position: fixed;
+  z-index: 1002;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 10px 16px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-  /* Downward-pointing triangle connecting bubble to button */
-  .onboarding-tip-arrow {
-    position: absolute;
-    bottom: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-top: 8px solid var(--ink);
-  }
+/* Downward-pointing triangle connecting bubble to button */
+.onboarding-tip-arrow {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid var(--ink);
+}
 
-  /* Emoji caret that bounces up-down to draw attention */
-  .onboarding-caret {
-    display: inline-block;
-    font-size: 16px;
-    animation: ob-bounce 0.7s ease-in-out infinite alternate;
-  }
+/* Emoji caret that bounces up-down to draw attention */
+.onboarding-caret {
+  display: inline-block;
+  font-size: 16px;
+  animation: ob-bounce 0.7s ease-in-out infinite alternate;
+}
 
-  @keyframes ob-bounce {
-    from {
-      transform: translateY(-2px);
-    }
-
-    to {
-      transform: translateY(4px);
-    }
-  }
+@keyframes ob-bounce {
+  from { transform: translateY(-2px); }
+  to   { transform: translateY(4px);  }
+}
