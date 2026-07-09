@@ -544,14 +544,29 @@ let _animEdges = [];
 function startNetworkAnimation() {
   stopNetworkAnimation();
   _animEdges = Array.from(document.querySelectorAll('#vizWrap svg line'));
-  _animEdges.forEach(e => e.classList.add('edge-pulse'));
+  if (!_animEdges.length) return;
+
+  const xs = _animEdges.map(e => parseFloat(e.getAttribute('x1')));
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+
+  _animEdges.forEach(e => {
+    const x = parseFloat(e.getAttribute('x1'));
+    const delay = ((x - minX) / (maxX - minX)) * 1.2; // 0s to 1.2s delay left→right
+    e.style.animationDelay = `-${delay}s`; // negative so it starts mid-animation, not blank
+    e.classList.add('edge-pulse');
+  });
+
   isNetworkAnimating = true;
 }
 
 function stopNetworkAnimation() {
   isNetworkAnimating = false;
   clearTimeout(networkAnimTimer);
-  _animEdges.forEach(e => e.classList.remove('edge-pulse'));
+  _animEdges.forEach(e => {
+    e.classList.remove('edge-pulse');
+    e.style.animationDelay = '';
+  });
   _animEdges = [];
 }
 
