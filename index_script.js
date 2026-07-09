@@ -580,12 +580,12 @@ function showOnboarding() {
 function _positionTip() {
   if (!_obTip) return;
   const btn = document.getElementById('addLayer');
-  const br  = btn.getBoundingClientRect();
-  const tr  = _obTip.getBoundingClientRect();
+  const br = btn.getBoundingClientRect();
+  const tr = _obTip.getBoundingClientRect();
   // Centre the tip over the button; clamp so it never bleeds off-screen
   const left = Math.max(8, Math.min(window.innerWidth - tr.width - 8, br.left + br.width / 2 - tr.width / 2));
   _obTip.style.left = left + 'px';
-  _obTip.style.top  = Math.max(8, br.top - tr.height - 14) + 'px';
+  _obTip.style.top = Math.max(8, br.top - tr.height - 14) + 'px';
 }
 
 function dismissOnboarding() {
@@ -594,10 +594,10 @@ function dismissOnboarding() {
   window.removeEventListener('resize', _positionTip);
   document.getElementById('addLayer').classList.remove('onboarding-spotlight');
   _obOverlay?.remove(); _obOverlay = null;
-  _obTip?.remove();     _obTip     = null;
+  _obTip?.remove(); _obTip = null;
   // Snapshot the freshly-rendered default config so trainingTriggered
   // can detect the *next* change instead of treating this state as new.
-  current_config = getNetworkConfig();
+
 }
 
 showOnboarding();
