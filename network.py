@@ -76,8 +76,9 @@ train_size = train_X.shape[1]
 import asyncio
 import json
 import websockets
-
+#hello
 test_X = np.load(os.path.join("./mnist_data", "test_X.npy")).astype(np.float32) / 255.0
+
 test_X = test_X.T
 test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
 
