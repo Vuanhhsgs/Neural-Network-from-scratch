@@ -113,7 +113,6 @@ async def socket_handler(socket):
 
                 predicted_digit = await Predict_digit(digit_data)
                 await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
-                await asyncio.sleep(0.5)
 
     except websockets.exceptions.ConnectionClosed:
         pass

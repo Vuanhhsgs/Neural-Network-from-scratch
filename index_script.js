@@ -517,8 +517,10 @@ socket.onmessage = (event) => {
     stopNetworkAnimation();
   }
   if (received_data.type == "PREDICT_FINISHED") {
-    stop_cycle_and_replace(received_data.content);
-    stopNetworkAnimation();
+    setTimeout(() => {
+      stop_cycle_and_replace(received_data.content);
+      stopNetworkAnimation();
+    }, 1000);
   }
   if (received_data.type == "LOSS_UPDATE") {
     lossHistory.push(received_data.content);
