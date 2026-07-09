@@ -416,10 +416,8 @@ document.getElementById('trainBtn').addEventListener('click', () => {
 
 window.setTestAccuracy = setTestAccuracy;
 window.renderAccuracyChart = renderAccuracyChart;
-window.showPrediction = showPrediction;
 window.getNetworkConfig = getNetworkConfig;
-window.trainModel = trainModel;
-window.predictDigit = predictDigit;
+
 
 renderArchitecture();
 renderNetwork();
