@@ -425,7 +425,9 @@ FINISHED_TRAINING = false;
 
 
 /// Connect to host computer part ///
-const socket = new WebSocket("ws://localhost:6767");
+//ngrok//
+const backend_url = "wss://groom-dreamt-chess.ngrok-free.dev";
+const socket = new WebSocket(backend_url);
 message_queue = [];
 
 socket.ononpen = () => {
