@@ -1,6 +1,3 @@
-
-
-
 /// Render the visualization of neural network based on users' custom config///
 
 
@@ -11,13 +8,10 @@ let hiddenLayers = [
   { size: 512, width: 1 },
 ];
 
-
-
-/* Onboarding state */
+/* ── Onboarding state ──────────────────────────────────────────── */
 let onboardingActive = true;
 let _obOverlay = null;
 let _obTip = null;
-
 
 const archList = document.getElementById('archList');
 const vizWrap = document.getElementById('vizWrap');
@@ -365,8 +359,10 @@ function stop_cycle_and_replace(predicted_digit) {
   predictionBox.classList.add('idle');
   predictionBox.textContent = predicted_digit;
 }
-document.getElementById('predictBtn').addEventListener('click', async () => {
-  predictTriggered()
+document.getElementById('predictBtn').addEventListener('click', () => {
+  if (FINISHED_TRAINING) {
+    predictTriggered();
+  }
 });
 
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -453,27 +449,27 @@ function send_message(msg) {
 
 current_config = null;
 function trainingTriggered() {
-  model_config = getNetworkConfig()
-
-  has_changed = JSON.stringify(model_config) !== JSON.stringify(current_config)
+  const model_config = getNetworkConfig();
+  // Compute has_changed BEFORE touching current_config; on first call
+  // current_config is null so JSON.stringify(null) !== the config string → always true.
+  const has_changed = JSON.stringify(model_config) !== JSON.stringify(current_config);
 
   if (has_changed) {
     FINISHED_TRAINING = false;
     current_config = model_config;
-    training_message = { message_type: "TRAINING_CONFIG", message_content: model_config };
+    const training_message = { message_type: "TRAINING_CONFIG", message_content: model_config };
     send_message(JSON.stringify(training_message));
-
     startNetworkAnimation('train');
   }
-
 }
 function predictTriggered() {
   if (FINISHED_TRAINING && has_drawed) {
     startPredictionCycle();
-    digit_data = Array.from(getPixels());
-    predict_message = { message_type: "DIGIT_DATA", message_content: digit_data };
+    // Array.from converts Float32Array → plain Array so JSON.stringify produces [0.1, 0.4, ...]
+    // instead of {} (which is what typed arrays silently serialize to).
+    const digit_data = Array.from(getPixels());
+    const predict_message = { message_type: "DIGIT_DATA", message_content: digit_data };
     send_message(JSON.stringify(predict_message));
-
     startNetworkAnimation('predict');
   }
 }
@@ -555,11 +551,6 @@ function stopNetworkAnimation() {
   const edges = document.querySelectorAll('#vizWrap svg line, #vizWrap svg path');
   edges.forEach(e => e.classList.remove('edge-flow-forward', 'edge-flow-backward'));
 }
-
-
-
-
-
 /* ── Onboarding ─────────────────────────────────────────────────
    showOnboarding()   – called once on page load
    _positionTip()     – keeps the tooltip anchored above the button
@@ -591,12 +582,12 @@ function showOnboarding() {
 function _positionTip() {
   if (!_obTip) return;
   const btn = document.getElementById('addLayer');
-  const br = btn.getBoundingClientRect();
-  const tr = _obTip.getBoundingClientRect();
+  const br  = btn.getBoundingClientRect();
+  const tr  = _obTip.getBoundingClientRect();
   // Centre the tip over the button; clamp so it never bleeds off-screen
   const left = Math.max(8, Math.min(window.innerWidth - tr.width - 8, br.left + br.width / 2 - tr.width / 2));
   _obTip.style.left = left + 'px';
-  _obTip.style.top = Math.max(8, br.top - tr.height - 14) + 'px';
+  _obTip.style.top  = Math.max(8, br.top - tr.height - 14) + 'px';
 }
 
 function dismissOnboarding() {
@@ -605,7 +596,7 @@ function dismissOnboarding() {
   window.removeEventListener('resize', _positionTip);
   document.getElementById('addLayer').classList.remove('onboarding-spotlight');
   _obOverlay?.remove(); _obOverlay = null;
-  _obTip?.remove(); _obTip = null;
+  _obTip?.remove();     _obTip     = null;
   // Snapshot the freshly-rendered default config so trainingTriggered
   // can detect the *next* change instead of treating this state as new.
   current_config = getNetworkConfig();
