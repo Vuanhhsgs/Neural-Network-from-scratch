@@ -422,8 +422,12 @@ renderAccuracyChart([]);
 
 FINISHED_TRAINING = false;
 
-/// Connect to host computer part ///
-const socket = new WebSocket("ws://localhost:6767");
+// Connect to host computer part //
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? "ws://localhost:6767"
+  : "wss://neural-network-from-scratch-ih00.onrender.com";
+
+const socket = new WebSocket(BACKEND_URL);
 message_queue = [];
 
 socket.ononpen = () => {

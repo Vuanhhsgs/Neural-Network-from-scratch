@@ -118,7 +118,9 @@ async def modelTraining_task():
 
 async def main():
     asyncio.create_task(modelTraining_task())
-    async with websockets.serve(socket_handler,"0.0.0.0", 6767):
+
+    port = int(os.environ.get("PORT", 6767))
+    async with websockets.serve(socket_handler, "0.0.0.0", port):
         await asyncio.Future()
 
 async def train_model(socket, training_data):
