@@ -179,14 +179,16 @@ function renderNetwork() {
     '<svg viewBox="0 0 ' + totalWidth + ' ' + HEIGHT + '" preserveAspectRatio="xMidYMid meet" ' +
     'style="min-width:' + Math.max(480, totalWidth) + 'px">' + parts.join('') + '</svg>';
 }
-/// Accuracy Chart ///
 let accuracyHistory = [];
 
 function renderAccuracyChart(history) {
   accuracyHistory = history || accuracyHistory;
   const W = 360, H = 150, L = 34, B = 26, T = 12, Rp = 10;
   const plotW = W - L - Rp, plotH = H - T - B;
-  const maxEpoch = Math.max(1, accuracyHistory.length ? accuracyHistory[accuracyHistory.length - 1].epoch : 1);
+
+  const maxEpoch = accuracyHistory.length ? Math.max(...accuracyHistory.map(p => p.epoch)) : 1;
+  const minEpoch = accuracyHistory.length ? Math.min(...accuracyHistory.map(p => p.epoch)) : 0;
+  const epochRange = Math.max(1, maxEpoch - minEpoch);
 
   const parts = [];
   parts.push('<line x1="' + L + '" y1="' + T + '" x2="' + L + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
@@ -201,12 +203,14 @@ function renderAccuracyChart(history) {
   parts.push('<text x="' + (L - 22) + '" y="' + (T + plotH / 2) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)" transform="rotate(-90 ' + (L - 22) + ' ' + (T + plotH / 2) + ')">Accuracy</text>');
   parts.push('<text x="' + (L + plotW / 2) + '" y="' + (H - 4) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)">Epochs</text>');
 
-  if (accuracyHistory.length > 1) {
-    const pts = accuracyHistory.map(p => {
-      const x = L + (p.epoch / maxEpoch) * plotW;
-      const y = T + plotH - (Math.max(0, Math.min(100, p.acc)) / 100) * plotH;
-      return x + ',' + y;
-    }).join(' ');
+  const toX = epoch => L + ((epoch - minEpoch) / epochRange) * plotW;
+  const toY = acc => T + plotH - (Math.max(0, Math.min(100, acc)) / 100) * plotH;
+
+  if (accuracyHistory.length === 1) {
+    const p = accuracyHistory[0];
+    parts.push('<circle cx="' + toX(p.epoch) + '" cy="' + toY(p.acc) + '" r="3" fill="var(--accent)"/>');
+  } else if (accuracyHistory.length > 1) {
+    const pts = accuracyHistory.map(p => toX(p.epoch) + ',' + toY(p.acc)).join(' ');
     parts.push('<polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="1.6"/>');
   }
 
@@ -221,8 +225,9 @@ function setTestAccuracy(pct) {
     document.getElementById('testAcc').textContent = Number(pct).toFixed(2) + '%';
   }
 }
-renderAccuracyChart(accuracyHistory)
-/// Loss chart///
+renderAccuracyChart(accuracyHistory);
+
+
 let lossHistory = [];
 
 function renderLossChart(history) {
@@ -231,39 +236,35 @@ function renderLossChart(history) {
   const W = 360, H = 150, L = 34, B = 26, T = 12, Rp = 10;
   const plotW = W - L - Rp, plotH = H - T - B;
 
-  const maxEpoch = Math.max(1, lossHistory.length ? lossHistory[lossHistory.length - 1].epoch : 1);
+  const maxEpoch = lossHistory.length ? Math.max(...lossHistory.map(p => p.epoch)) : 1;
+  const minEpoch = lossHistory.length ? Math.min(...lossHistory.map(p => p.epoch)) : 0;
+  const epochRange = Math.max(1, maxEpoch - minEpoch);
 
   const peakLoss = lossHistory.length ? Math.max(...lossHistory.map(p => p.loss)) : 1;
   const maxLoss = peakLoss === 0 ? 1 : peakLoss;
 
   const parts = [];
-
   parts.push('<line x1="' + L + '" y1="' + T + '" x2="' + L + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
   parts.push('<line x1="' + L + '" y1="' + (T + plotH) + '" x2="' + (W - Rp) + '" y2="' + (T + plotH) + '" stroke="var(--line-strong)" stroke-width="1"/>');
 
-  const gridValues = [0, maxLoss / 2, maxLoss];
-
-  gridValues.forEach(v => {
-
+  [0, maxLoss / 2, maxLoss].forEach(v => {
     const y = T + plotH - (v / maxLoss) * plotH;
-
     const label = v % 1 === 0 ? v : v.toFixed(2);
-
     parts.push('<line x1="' + L + '" y1="' + y + '" x2="' + (W - Rp) + '" y2="' + y + '" stroke="var(--line)" stroke-width="0.7"/>');
     parts.push('<text x="' + (L - 6) + '" y="' + (y + 3) + '" text-anchor="end" font-family="var(--mono)" font-size="9" fill="var(--ink-mute)">' + label + '</text>');
   });
 
-
   parts.push('<text x="' + (L - 22) + '" y="' + (T + plotH / 2) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)" transform="rotate(-90 ' + (L - 22) + ' ' + (T + plotH / 2) + ')">Loss</text>');
   parts.push('<text x="' + (L + plotW / 2) + '" y="' + (H - 4) + '" text-anchor="middle" font-family="var(--sans)" font-size="10" fill="var(--ink-soft)">Epochs</text>');
 
+  const toX = epoch => L + ((epoch - minEpoch) / epochRange) * plotW;
+  const toY = loss => T + plotH - (Math.max(0, loss) / maxLoss) * plotH;
 
-  if (lossHistory.length > 1) {
-    const pts = lossHistory.map(p => {
-      const x = L + (p.epoch / maxEpoch) * plotW;
-      const y = T + plotH - (Math.max(0, p.loss) / maxLoss) * plotH;
-      return x + ',' + y;
-    }).join(' ');
+  if (lossHistory.length === 1) {
+    const p = lossHistory[0];
+    parts.push('<circle cx="' + toX(p.epoch) + '" cy="' + toY(p.loss) + '" r="3" fill="var(--accent)"/>');
+  } else if (lossHistory.length > 1) {
+    const pts = lossHistory.map(p => toX(p.epoch) + ',' + toY(p.loss)).join(' ');
     parts.push('<polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="1.6"/>');
   }
 
@@ -274,12 +275,11 @@ function renderLossChart(history) {
 function setLoss(val) {
   if (val == null || val === undefined) {
     document.getElementById('trainLoss').textContent = '—';
-  }
-  else {
+  } else {
     document.getElementById('trainLoss').textContent = Number(val).toFixed(4);
   }
 }
-renderLossChart(lossHistory)
+renderLossChart(lossHistory);
 /// Pad for user to draw functions///
 const pad = document.getElementById('pad');
 const ctx = pad.getContext('2d');
