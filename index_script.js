@@ -290,7 +290,7 @@ function resetPad() {
   ctx.fillRect(0, 0, pad.width, pad.height);
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = '#ffffffff';
   ctx.lineWidth = 18;
 }
 resetPad();
