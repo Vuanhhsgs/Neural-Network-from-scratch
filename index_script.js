@@ -403,7 +403,7 @@ document.getElementById('regEnabled').addEventListener('change', e => {
 });
 
 document.getElementById('trainBtn').addEventListener('click', () => {
-  trainModel(getNetworkConfig());
+  trainingTriggered()
 });
 
 
