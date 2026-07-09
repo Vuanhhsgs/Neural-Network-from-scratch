@@ -497,6 +497,7 @@ function trainingTriggered() {
     startNetworkAnimation();
   }
   else {
+    current_config = model_config
     showToast("You haven't update your network structure.", 'warn');
     return;
   }
