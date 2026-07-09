@@ -85,6 +85,7 @@ test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
 mean_ith_features = np.mean(train_X, axis=1, keepdims=True)
 std_ith_features = np.std(train_X, axis=1, keepdims=True)
 std_ith_features[std_ith_features == 0] = 1 #prevent division by zero
+
 train_X -= mean_ith_features
 train_X /= std_ith_features
 
@@ -94,7 +95,7 @@ test_X -= mean_ith_features
 test_X /= std_ith_features
 
 
-training_queue = asyncio.Queue()
+
 
 # Global variables for Prediction function
 global_model_weights = []
@@ -113,6 +114,7 @@ async def socket_handler(socket):
     except websockets.exceptions.ConnectionClosed:
         pass
             
+training_queue = asyncio.Queue()
 async def modelTraining_task():
     while True:
         training_request = await training_queue.get()
@@ -124,9 +126,7 @@ async def modelTraining_task():
 
 async def main():
     asyncio.create_task(modelTraining_task())
-
-    port = int(os.environ.get("PORT", 6767))
-    async with websockets.serve(socket_handler, "0.0.0.0", port):
+    async with websockets.serve(socket_handler,"0.0.0.0", 6767):
         await asyncio.Future()
 
 async def train_model(socket, training_data):
