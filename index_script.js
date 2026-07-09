@@ -11,6 +11,14 @@ let hiddenLayers = [
   { size: 512, width: 1 },
 ];
 
+
+
+/* Onboarding state */
+let onboardingActive = true;
+let _obOverlay = null;
+let _obTip = null;
+
+
 const archList = document.getElementById('archList');
 const vizWrap = document.getElementById('vizWrap');
 
@@ -358,10 +366,7 @@ function stop_cycle_and_replace(predicted_digit) {
   predictionBox.textContent = predicted_digit;
 }
 document.getElementById('predictBtn').addEventListener('click', async () => {
-  if (FINISHED_TRAINING) {
-    startPredictionCycle();
-    predictTriggered()
-  }
+  predictTriggered()
 });
 
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -393,6 +398,7 @@ document.getElementById('addLayer').addEventListener('click', () => {
   hiddenLayers.push({ size: 32, width: 1 });
   renderArchitecture();
   renderNetwork();
+  if (onboardingActive) dismissOnboarding();
 });
 
 document.getElementById('dropoutEnabled').addEventListener('change', e => {
@@ -448,10 +454,7 @@ function send_message(msg) {
 current_config = null;
 function trainingTriggered() {
   model_config = getNetworkConfig()
-  if (current_config === null) {
-    FINISHED_TRAINING = false;
-    current_config = model_config;
-  }
+
   has_changed = JSON.stringify(model_config) !== JSON.stringify(current_config)
 
   if (has_changed) {
@@ -467,7 +470,7 @@ function trainingTriggered() {
 function predictTriggered() {
   if (FINISHED_TRAINING && has_drawed) {
     startPredictionCycle();
-    digit_data = getPixels();
+    digit_data = Array.from(getPixels());
     predict_message = { message_type: "DIGIT_DATA", message_content: digit_data };
     send_message(JSON.stringify(predict_message));
 
@@ -552,3 +555,60 @@ function stopNetworkAnimation() {
   const edges = document.querySelectorAll('#vizWrap svg line, #vizWrap svg path');
   edges.forEach(e => e.classList.remove('edge-flow-forward', 'edge-flow-backward'));
 }
+
+
+
+
+
+/* ── Onboarding ─────────────────────────────────────────────────
+   showOnboarding()   – called once on page load
+   _positionTip()     – keeps the tooltip anchored above the button
+   dismissOnboarding()– called from the addLayer handler on first click
+──────────────────────────────────────────────────────────────── */
+function showOnboarding() {
+  // Full-screen click blocker – sits below the spotlight button (z 999 < 1001)
+  _obOverlay = document.createElement('div');
+  _obOverlay.className = 'onboarding-overlay';
+  document.body.appendChild(_obOverlay);
+
+  // Elevate the button above the overlay so it remains clickable
+  document.getElementById('addLayer').classList.add('onboarding-spotlight');
+
+  // Tooltip bubble with bouncing caret
+  _obTip = document.createElement('div');
+  _obTip.className = 'onboarding-tip';
+  _obTip.innerHTML =
+    '<span class="onboarding-caret">👇</span>' +
+    ' Click here to start building your first neural network' +
+    '<span class="onboarding-tip-arrow"></span>';
+  document.body.appendChild(_obTip);
+
+  // Position after the browser has painted the tip so we get real dimensions
+  requestAnimationFrame(_positionTip);
+  window.addEventListener('resize', _positionTip);
+}
+
+function _positionTip() {
+  if (!_obTip) return;
+  const btn = document.getElementById('addLayer');
+  const br = btn.getBoundingClientRect();
+  const tr = _obTip.getBoundingClientRect();
+  // Centre the tip over the button; clamp so it never bleeds off-screen
+  const left = Math.max(8, Math.min(window.innerWidth - tr.width - 8, br.left + br.width / 2 - tr.width / 2));
+  _obTip.style.left = left + 'px';
+  _obTip.style.top = Math.max(8, br.top - tr.height - 14) + 'px';
+}
+
+function dismissOnboarding() {
+  if (!onboardingActive) return;
+  onboardingActive = false;
+  window.removeEventListener('resize', _positionTip);
+  document.getElementById('addLayer').classList.remove('onboarding-spotlight');
+  _obOverlay?.remove(); _obOverlay = null;
+  _obTip?.remove(); _obTip = null;
+  // Snapshot the freshly-rendered default config so trainingTriggered
+  // can detect the *next* change instead of treating this state as new.
+  current_config = getNetworkConfig();
+}
+
+showOnboarding();
