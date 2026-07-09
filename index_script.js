@@ -430,7 +430,7 @@ const backend_url = "wss://groom-dreamt-chess.ngrok-free.dev";
 const socket = new WebSocket(backend_url);
 message_queue = [];
 
-socket.ononpen = () => {
+socket.onopen = () => {
   while (message_queue.length > 0) {
     socket.send(message_queue.shift());
   }
