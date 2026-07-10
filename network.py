@@ -238,7 +238,7 @@ async def train_model(training_data, progress_callback):
             this_batch_M = [] 
             this_batch_N = []
             this_batch_H = [] #Hidden layer
-            this_batch_dropout = [] # To keep track of dropout matrices for backprop
+            this_batch_dropout = [] # dropout matrix consisting of 0 and 1
             
             first_M = model_weights[0] @ batch_matrix_X + model_bias[0] #M_0 = W_0X + B_0; X,M,W lies in R^{d*B}, R^{k*B}, R^{k*d} 
             this_batch_M.append(first_M)
@@ -285,25 +285,23 @@ async def train_model(training_data, progress_callback):
             #from H_{n-1} to calculating loss function:
             #the last layer are: M_n = W_n * H_(n-1) + B_n, and note that len(model_weights) = n+1  
             W_n = model_weights[-1]   
-            if len(model_weights) > 1:
-                H_n_minus_1 = this_batch_H[-1]
-            else:
-                H_n_minus_1 = batch_matrix_X
-                
+            H_n_minus_1 = this_batch_H[-1]
             B_n =  model_bias[-1]
             last_M = W_n @ H_n_minus_1 + B_n
             
             #Stabilization to prevent overflow
             last_M_shifted = last_M - np.max(last_M, axis=0)
             exp_M = np.exp(last_M_shifted)
-            predicted_Y = exp_M / exp_M.sum(axis=0)
+            predicted_Y = exp_M / exp_M.sum(axis=0) #predicted_Y = softmax(M)
+
             
             Loss = 0
             for i in range(true_batchSize): #0 to B-1 since batch_Y lies in R^{1*B}
                 true_digit = batch_Y[i] #0 to 9
-                Loss -= np.log( predicted_Y[true_digit, i] + 1e-9 ) #cross entropy loss requires negative log
-                
-            Loss /= true_batchSize
+                Loss -= np.log( predicted_Y[true_digit, i] + 1e-9 )
+                    #cross entropy loss and we need that epsilon value in case predicted_Y[true_Y, batch_index] = 0 
+         
+            Loss /= true_batchSize  # L = 1/B(sum of -log(predited_Y_i))
             if regularization_enabled:
                 Loss += L2_total_weight * regularization_parameter
             epoch_total_loss += Loss
@@ -311,7 +309,7 @@ async def train_model(training_data, progress_callback):
 
             #Backpropagation 
             
-            #1.dL/dM_last
+            #calculate dL/dM_last
             dL_dM = np.copy(predicted_Y)
             for i in range(true_batchSize):
                 dL_dM[batch_Y[i], i] -= 1
@@ -320,25 +318,27 @@ async def train_model(training_data, progress_callback):
             dL_dW = []
             dL_dB = []
 
-            #2.dl/dW and dL/dB
+            #calculate dl/dW and dL/dB based on dL/dM
             dL_dW.append(dL_dM @ H_n_minus_1.T)
-            dL_dB.append(np.sum(dL_dM, axis=1, keepdims=True))
+            dL_dB.append(np.sum(dL_dM, axis=1, keepdims=True)) #dL/dB = sum of all (dL/dM)_{i,j}
 
-            # 3.dL/dH based on dL/dM
+            #calculate dL/dH based on dL/dM
             dL_dH = W_n.T @ dL_dM
 
             #Backprogating through hidden layers
             for k in range(len(model_weights)-2, -1, -1):
                 # Calculate dL/dN
                 if dropout_enabled:
+                    # H = element_wise_multiplication(N, dropout_matrix) * 1/(1-dropout_rate) then
+                    # dL/dN = element_wise_multiplication(dL/dH, dropout_matrix)* 1/(1-dropout_rate)
                     dL_dN = dL_dH * this_batch_dropout[k] * (1 / (1 - dropout_rate))
                 else:
                     dL_dN = dL_dH
                     
-                #Calculate dL/dM(ReLU derivative)
-                dL_dM_k = dL_dN * (this_batch_M[k] > 0)
+                #Calculate dL/dM based on dL/dN
+                dL_dM_k = dL_dN * (this_batch_M[k] > 0) #N = ReLu(M)
                 
-                #Setup H_prev
+                #the previous hidden layer could either be a hidden layer or input matrix X
                 if k > 0:
                     H_prev = this_batch_H[k-1]
                 else:
@@ -348,11 +348,11 @@ async def train_model(training_data, progress_callback):
                 dL_dW.insert(0, dL_dM_k @ H_prev.T)
                 dL_dB.insert(0, np.sum(dL_dM_k, axis=1, keepdims=True))
                 
-                #Calculate dL/dH 
-                if k > 0:
+                #Calculate dL/dH based on dL/dM
+                if k > 0: #otherwise if k=0 we don't need to calculate dL/dX
                     dL_dH = model_weights[k].T @ dL_dM_k
 
-            #4. Update W and b with gradient descent
+            #update W and b with gradient descent based on dL/dW and dL/dB
             for k in range(len(model_weights)):
                 if regularization_enabled:
                     dL_dW[k] += 2 * regularization_parameter * model_weights[k] #derivative of regularlization part 
