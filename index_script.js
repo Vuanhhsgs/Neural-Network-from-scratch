@@ -521,7 +521,7 @@ socket.onmessage = (event) => {
     setTimeout(() => {
       stop_cycle_and_replace(received_data.content);
       stopNetworkAnimation();
-    }, 1000);
+    }, 2000);
   }
   if (received_data.type == "LOSS_UPDATE") {
     lossHistory.push(received_data.content);
