@@ -112,7 +112,7 @@ async def socket_handler(socket):
 
     except websockets.exceptions.ConnectionClosed:
         print("CLient closed the web/disconnected")
-
+max_concurrent_thread = 2
             
 training_queue = asyncio.Queue()
 thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent_thread)
@@ -147,7 +147,7 @@ async def modelTraining_task():
             training_queue.task_done()
         
                
-max_concurrent_thread = 2
+
 
 async def main():
     for i in range(max_concurrent_thread):
