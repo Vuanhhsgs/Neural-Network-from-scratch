@@ -382,7 +382,7 @@ def train_model(training_data, progress_callback):
         accuracy = (correct_predictions / test_batchSize) * 100
         
         #Send accuracy socket to update chart
-        progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "loss": float(accuracy)})
+        progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "acc": float(accuracy)})
 
 
     return model_weights, model_bias

@@ -454,7 +454,7 @@ window.getNetworkConfig = getNetworkConfig;
 
 renderArchitecture();
 renderNetwork();
-renderAccuracyChart([]);
+
 
 
 FINISHED_TRAINING = false;
