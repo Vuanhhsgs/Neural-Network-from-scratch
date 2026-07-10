@@ -431,7 +431,7 @@ document.getElementById('addLayer').addEventListener('click', () => {
   renderArchitecture();
   renderNetwork();
   if (onboardingActive) dismissOnboarding();
-  startNetworkAnimation()
+
 });
 
 document.getElementById('dropoutEnabled').addEventListener('change', e => {
