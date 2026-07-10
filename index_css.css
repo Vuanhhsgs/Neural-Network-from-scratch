@@ -395,10 +395,10 @@ input:disabled {
 
 /* NEURON FIRING ANIMATIONS */
 
-@keyframes slowDot {
+@keyframes edgePulse {
   from {
-    /* Unitless 400 to match the array sum */
-    stroke-dashoffset: 400;
+    /* Must exactly match the sum of stroke-dasharray (8 + 24 = 32) for a seamless loop */
+    stroke-dashoffset: 32;
   }
 
   to {
@@ -407,16 +407,23 @@ input:disabled {
 }
 
 .edge-pulse {
-  /* Unitless: 4 unit dot, 396 unit invisible gap */
-  stroke-dasharray: 4 396;
-  animation: slowDot 3s linear infinite;
+  /* 8px pulse line, 24px empty space */
+  stroke-dasharray: 8 24;
+  animation: edgePulse 1.2s linear infinite;
 
-  /* Visuals */
-  stroke: rgba(0, 160, 253, 0.415);
-  stroke-width: 2.5;
+  /* Visual Enhancements */
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2px;
   stroke-linecap: round;
+  /* Turns harsh squares into smooth "comets" of energy */
 
+  /* Optional: Adds a neon glow. If you have >500 edges, remove this to save GPU power */
+  filter: drop-shadow(0 0 4px rgba(100, 200, 255, 0.6));
+
+  /* Performance optimization */
   will-change: stroke-dashoffset;
+  transform: translateZ(0);
+  /* Force hardware acceleration */
 }
 
 /* ── Onboarding spotlight ──────────────────────────────────────── */

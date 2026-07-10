@@ -539,7 +539,7 @@ socket.onmessage = (event) => {
 /* Network Firing Animation Controller */
 let networkAnimTimer = null;
 let isNetworkAnimating = false;
-let _animEdges = [];
+let _animEdges = []; // Will now store objects: { element, x }
 
 function startNetworkAnimation() {
   stopNetworkAnimation();
@@ -547,21 +547,26 @@ function startNetworkAnimation() {
   const lines = document.querySelectorAll('#vizWrap svg line');
   if (!lines.length) return;
 
-  // PHASE 1: BATCH READS WITH FALLBACK
+  // PHASE 1: BATCH READS
+  // Read all data first without touching styles to prevent layout thrashing
   _animEdges = Array.from(lines).map(line => {
-    // Safely attempt the fast method, fallback to the standard method if it fails
-    const xVal = line.x1 ? line.x1.baseVal.value : parseFloat(line.getAttribute('x1') || 0);
-    return { element: line, x: xVal };
+    // .x1.baseVal.value is significantly faster than getAttribute() for SVGs
+    return {
+      element: line,
+      x: line.x1.baseVal.value
+    };
   });
 
   const xs = _animEdges.map(edge => edge.x);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
-  const range = (maxX - minX) || 1;
+  const range = (maxX - minX) || 1; // Fallback to 1 to prevent division by zero
 
   // PHASE 2: BATCH WRITES
+  // Apply all visual changes in the next available frame
   requestAnimationFrame(() => {
     _animEdges.forEach(edge => {
+      // Scale delay up to 1.5s based on position
       const delay = ((edge.x - minX) / range) * 1.5;
       edge.element.style.animationDelay = `-${delay}s`;
       edge.element.classList.add('edge-pulse');
@@ -577,6 +582,7 @@ function stopNetworkAnimation() {
 
   if (!_animEdges.length) return;
 
+  // Batch DOM cleanup to maintain high frame rate when stopping
   requestAnimationFrame(() => {
     _animEdges.forEach(edge => {
       edge.element.classList.remove('edge-pulse');
