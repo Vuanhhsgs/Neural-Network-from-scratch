@@ -511,34 +511,45 @@ function predictTriggered() {
   startNetworkAnimation();
 }
 
-let queueInterval = null;
+let buttonInterval = null;
+
 socket.onmessage = (event) => {
   const received_data = JSON.parse(event.data);
+  const trainBtn = document.getElementById("trainBtn");
+
   if (received_data.type == "TRAINING_FINISHED") {
     FINISHED_TRAINING = true;
-
     stopNetworkAnimation();
-    if (queueInterval) {
-      clearInterval(queueInterval);
-      queueInterval = null;
+
+    if (buttonInterval) {
+      clearInterval(buttonInterval);
+      buttonInterval = null;
     }
-    const trainBtn = document.getElementById("trainBtn");
-    trainBtn.innerText = "Train";
     trainBtn.disabled = false;
+    trainBtn.innerText = "Train";
   }
+
+  if (received_data.type == "TRAINING_STARTED") {
+    if (buttonInterval) { clearInterval(buttonInterval); }
+
+    let dotCount = 1;
+    buttonInterval = setInterval(() => {
+      trainBtn.innerText = `Training in progress ${".".repeat(dotCount)}`;
+      dotCount = (dotCount % 3) + 1;
+    }, 500);
+  }
+
   if (received_data.type == "TRAINING_QUEUED") {
-    const trainBtn = document.getElementById("trainBtn");
     trainBtn.disabled = true;
 
-    if (queueInterval) { clearInterval(queueInterval); }
-    let dotCount = 1;
+    if (buttonInterval) { clearInterval(buttonInterval); }
 
-    queueInterval = setInterval(() => {
+    let dotCount = 1;
+    buttonInterval = setInterval(() => {
       trainBtn.innerText = `Your training order is in queue ${".".repeat(dotCount)}`;
       dotCount = (dotCount % 3) + 1;
-    }, 500); //update every 0.5s
+    }, 500);
   }
-
 
   if (received_data.type == "PREDICT_FINISHED") {
     setTimeout(() => {
@@ -556,7 +567,7 @@ socket.onmessage = (event) => {
     renderAccuracyChart(accuracyHistory);
     setTestAccuracy(received_data.content.acc);
   }
-}
+};
 
 
 /* Network Firing Animation Controller */

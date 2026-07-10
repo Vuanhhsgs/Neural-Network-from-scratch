@@ -107,7 +107,7 @@ async def socket_handler(socket):
                 await socket.send(json.dumps({"type": "TRAINING_QUEUED"}))
             if data.get("message_type") == "DIGIT_DATA":
                 digit_data = data.get("message_content")
-                predicted_digit = await Predict_digit(digit_data, socket.model_weights. socket.model_bias)
+                predicted_digit = await Predict_digit(digit_data, socket.model_weights, socket.model_bias)
                 await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
 
     except websockets.exceptions.ConnectionClosed:
@@ -124,12 +124,14 @@ async def modelTraining_task():
         training_request = await training_queue.get()
         socket = training_request["socket"]
         training_data = training_request["data"]
-        def progress_callback(message_type, content):
-            asyncio.run_coroutine_threadsafe(
-                socket.sends(json.dumps({"type": message_type, "content": content})),
-                main_event_loop
-            )
         try:
+            await socket.send(json.dumps({"type": "TRAINING_STARTED"}))
+            
+            def progress_callback(message_type, content):
+                asyncio.run_coroutine_threadsafe(
+                    socket.sends(json.dumps({"type": message_type, "content": content})),
+                    main_event_loop
+                )
             model_weights, model_bias = main_event_loop.run_in_executor(
                 thread_pool,
                 train_model,
@@ -138,6 +140,7 @@ async def modelTraining_task():
             )
             socket.model_weights = model_weights
             socket.model_bias = model_bias
+            await socket.send(json.dumps({"type": "TRAINING_FINISHED"}))
         except Exception as e:
             print("Error happened in thread" + str(e))
         finally:
