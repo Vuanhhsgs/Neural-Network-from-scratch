@@ -385,7 +385,7 @@ def train_model(training_data, progress_callback):
         progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "loss": float(accuracy)})
 
 
-        return model_weights, model_bias
+    return model_weights, model_bias
 
 if __name__ == "__main__":
     asyncio.run(main())
