@@ -415,8 +415,7 @@ input:disabled {
   stroke-width: 2px;
   stroke-linecap: round;
 
-  /* Optional Glow */
-  filter: drop-shadow(0 0 4px rgba(100, 200, 255, 0.6));
+
 
   /* Kept performance hint, removed the buggy translateZ */
   will-change: stroke-dashoffset;
