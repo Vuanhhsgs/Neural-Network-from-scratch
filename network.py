@@ -150,7 +150,7 @@ async def modelTraining_task():
 max_concurrent_thread = 2
 
 async def main():
-    for i in max_concurrent_thread:
+    for i in range(max_concurrent_thread):
         asyncio.create_task(modelTraining_task())
     async with websockets.serve(socket_handler,"0.0.0.0", 6767):
         await asyncio.Future()
