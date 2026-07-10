@@ -129,10 +129,10 @@ async def modelTraining_task():
             
             def progress_callback(message_type, content):
                 asyncio.run_coroutine_threadsafe(
-                    socket.sends(json.dumps({"type": message_type, "content": content})),
+                    socket.send(json.dumps({"type": message_type, "content": content})),
                     main_event_loop
                 )
-            model_weights, model_bias = main_event_loop.run_in_executor(
+            model_weights, model_bias = await main_event_loop.run_in_executor(
                 thread_pool,
                 train_model,
                 training_data, 
@@ -177,7 +177,7 @@ async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
     predicted_digit = int(np.argmax(final_M))
     return predicted_digit
 
-async def train_model(training_data, progress_callback):
+def train_model(training_data, progress_callback):
 
     epochs = training_data.get("epochs")
     batchSize = training_data.get("batchSize")
