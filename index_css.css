@@ -397,33 +397,29 @@ input:disabled {
 
 @keyframes edgePulse {
   from {
-    /* Must exactly match the sum of stroke-dasharray (8 + 24 = 32) for a seamless loop */
-    stroke-dashoffset: 32;
+    /* STRICT CSS: Must include 'px' or the browser ignores the animation entirely */
+    stroke-dashoffset: 32px;
   }
 
   to {
-    stroke-dashoffset: 0;
+    stroke-dashoffset: 0px;
   }
 }
 
 .edge-pulse {
-  /* 8px pulse line, 24px empty space */
-  stroke-dasharray: 8 24;
+  /* Added 'px' and commas for maximum cross-browser compatibility */
+  stroke-dasharray: 8px, 24px;
   animation: edgePulse 1.2s linear infinite;
 
-  /* Visual Enhancements */
   stroke: rgba(255, 255, 255, 0.9);
   stroke-width: 2px;
   stroke-linecap: round;
-  /* Turns harsh squares into smooth "comets" of energy */
 
-  /* Optional: Adds a neon glow. If you have >500 edges, remove this to save GPU power */
+  /* Optional Glow */
   filter: drop-shadow(0 0 4px rgba(100, 200, 255, 0.6));
 
-  /* Performance optimization */
+  /* Kept performance hint, removed the buggy translateZ */
   will-change: stroke-dashoffset;
-  transform: translateZ(0);
-  /* Force hardware acceleration */
 }
 
 /* ── Onboarding spotlight ──────────────────────────────────────── */
