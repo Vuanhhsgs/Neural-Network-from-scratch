@@ -542,14 +542,16 @@ socket.onmessage = (event) => {
     }
     trainBtn.disabled = false;
     trainBtn.innerText = "Train";
+    
+
+  }
+
+  if (received_data.type == "TRAINING_STARTED") {
     lossHistory = [];
     accuracyHistory = [];
     document.getElementById('lossChartWrap').innerHTML = '';
     document.getElementById('chartWrap').innerHTML = '';
 
-  }
-
-  if (received_data.type == "TRAINING_STARTED") {
     if (buttonInterval) { clearInterval(buttonInterval); }
 
     let dotCount = 1;
