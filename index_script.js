@@ -542,10 +542,10 @@ socket.onmessage = (event) => {
     }
     trainBtn.disabled = false;
     trainBtn.innerText = "Train";
-    lossHistory = []
-    accuracyHistory = []
-    renderLossChart(lossHistory);
-    renderAccuracyChart(accuracyHistory);
+    lossHistory = [];
+    accuracyHistory = [];
+    document.getElementById('lossChartWrap').innerHTML = '';
+    document.getElementById('chartWrap').innerHTML = '';
 
   }
 
