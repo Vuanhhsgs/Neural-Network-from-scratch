@@ -395,32 +395,65 @@ input:disabled {
 
 /* NEURON FIRING ANIMATIONS */
 
-@keyframes edgePulse {
-  from {
-    /* STRICT CSS: Must include 'px' or the browser ignores the animation entirely */
-    stroke-dashoffset: 32px;
+/*
+  Stack the SVG and the canvas overlay inside vizWrap using CSS Grid.
+  Both children sit in the same grid cell and scale together, so the
+  canvas coordinate system (set to the SVG viewBox dimensions in JS)
+  maps 1-to-1 onto the rendered SVG without any positional math.
+*/
+#vizWrap {
+  display: grid;
+}
+
+#vizWrap>* {
+  grid-area: 1 / 1;
+  /* every direct child occupies the same cell */
+  min-width: 0;
+  /* prevent grid blowout from large SVG min-widths */
+}
+
+/*
+  The canvas overlay appended by the animation controller.
+  width/height attributes are set to the SVG viewBox size in JS;
+  CSS scales it the same way the SVG scales (100% wide, auto height).
+*/
+.net-anim-canvas {
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  image-rendering: auto;
+  /* bilinear interpolation for smooth scaling */
+}
+
+/*
+  Parent card border animation while training / predicting is active.
+  The class is toggled by startNetworkAnimation / stopNetworkAnimation.
+  CSS animations override regular author declarations in the cascade,
+  so no !important is needed to beat the base .card border-color.
+*/
+.net-animating {
+  animation: net-border-breathe 2.2s ease-in-out infinite;
+}
+
+@keyframes net-border-breathe {
+
+  0%,
+  100% {
+    border-color: rgba(79, 70, 229, 0.28);
+    box-shadow:
+      0 0 0 1px rgba(79, 70, 229, 0.10),
+      0 2px 14px rgba(79, 70, 229, 0.07);
   }
 
-  to {
-    stroke-dashoffset: 0px;
+  50% {
+    border-color: rgba(79, 70, 229, 0.60);
+    box-shadow:
+      0 0 0 1px rgba(79, 70, 229, 0.22),
+      0 6px 28px rgba(79, 70, 229, 0.15);
   }
 }
 
-.edge-pulse {
-  /* Added 'px' and commas for maximum cross-browser compatibility */
-  stroke-dasharray: 8px, 24px;
-  animation: edgePulse 1.2s linear infinite;
 
-  stroke: rgba(255, 255, 255, 0.9);
-  stroke-width: 2px;
-  stroke-linecap: round;
-
-  /* Optional Glow */
-  filter: drop-shadow(0 0 4px rgba(100, 200, 255, 0.6));
-
-  /* Kept performance hint, removed the buggy translateZ */
-  will-change: stroke-dashoffset;
-}
 
 /* ── Onboarding spotlight ──────────────────────────────────────── */
 

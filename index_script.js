@@ -179,7 +179,7 @@ function renderNetwork() {
     '<svg viewBox="0 0 ' + totalWidth + ' ' + HEIGHT + '" preserveAspectRatio="xMidYMid meet" ' +
     'style="min-width:' + Math.max(480, totalWidth) + 'px">' + parts.join('') + '</svg>';
 }
-let accuracyHistory = [76, 80, 85, 89, 91, 93, 97];
+let accuracyHistory = [];
 
 function renderAccuracyChart(history) {
   accuracyHistory = history;
@@ -431,6 +431,7 @@ document.getElementById('addLayer').addEventListener('click', () => {
   renderArchitecture();
   renderNetwork();
   if (onboardingActive) dismissOnboarding();
+  startNetworkAnimation()
 });
 
 document.getElementById('dropoutEnabled').addEventListener('change', e => {
@@ -537,54 +538,265 @@ socket.onmessage = (event) => {
 
 
 /* Network Firing Animation Controller */
-let networkAnimTimer = null;
-let isNetworkAnimating = false;
-let _animEdges = [];
+(function () {
 
-function startNetworkAnimation() {
-  stopNetworkAnimation();
+  // ── State ─────────────────────────────────────────────────────────────
+  let _canvas = null;
+  let _ctx = null;
+  let _raf = null;
+  let _running = false;
+  let _waves = [];   // { p, dir }  dir=1 forward, dir=-1 backward
+  let _glows = [];   // { col, v }
+  let _lastTs = null;
+  let _fwdClk = 0;
+  let _bkwClk = 0;
 
-  const lines = document.querySelectorAll('#vizWrap svg line');
-  if (!lines.length) return;
+  // ── Tuning ─────────────────────────────────────────────────────────────
+  const TRANSIT_MS = 1100;  // ms for one wave to cross the full network
+  const SPAWN_EVERY = 520;   // ms between spawns per direction
+  const MAX_EACH = 2;     // max waves per direction in flight at once
+  const LINE_LEN = 0.18;  // segment length as fraction of each edge
+  const GLOW_DECAY = 0.0025;
 
-  // PHASE 1: BATCH READS WITH FALLBACK
-  _animEdges = Array.from(lines).map(line => {
-    // Safely attempt the fast method, fallback to the standard method if it fails
-    const xVal = line.x1 ? line.x1.baseVal.value : parseFloat(line.getAttribute('x1') || 0);
-    return { element: line, x: xVal };
-  });
+  // ── Geometry — exact mirror of renderNetwork() constants ───────────────
+  function buildColumns() {
+    const layers = [{ size: INPUT_SIZE, width: 1 }];
+    hiddenLayers.forEach(l => layers.push({ size: l.size, width: l.width }));
+    layers.push({ size: OUTPUT_SIZE, width: 1 });
 
-  const xs = _animEdges.map(edge => edge.x);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const range = (maxX - minX) || 1;
+    const CIRCLE_GAP = 24, COL_GAP = 60, PAD_X = 44, TOP = 28;
+    const HEIGHT = 384, LABEL_AREA = 58, GAP_ELL = 38;
+    const cy = TOP + (HEIGHT - TOP - LABEL_AREA) / 2;
 
-  // PHASE 2: BATCH WRITES
-  requestAnimationFrame(() => {
-    _animEdges.forEach(edge => {
-      const delay = ((edge.x - minX) / range) * 1.5;
-      edge.element.style.animationDelay = `-${delay}s`;
-      edge.element.classList.add('edge-pulse');
-    });
-  });
+    const cols = [];
+    let ci = 0;
+    for (const layer of layers) {
+      const n = circleCount(layer.size);
+      for (let w = 0; w < layer.width; w++) {
+        const x = PAD_X + ci * COL_GAP;
+        const block = (n - 2) * CIRCLE_GAP + GAP_ELL;
+        const top = cy - block / 2;
+        const circles = [];
+        for (let i = 0; i < n - 1; i++) circles.push({ x, y: top + i * CIRCLE_GAP });
+        circles.push({ x, y: top + (n - 2) * CIRCLE_GAP + GAP_ELL });
+        cols.push({ x, circles });
+        ci++;
+      }
+    }
+    return cols;
+  }
 
-  isNetworkAnimating = true;
-}
+  // ── Canvas: auto-recreated if renderNetwork() wipes innerHTML ──────────
+  function getCtx() {
+    const svg = vizWrap.querySelector('svg');
+    if (!svg) return null;
+    if (!vizWrap.contains(_canvas)) {
+      _canvas = document.createElement('canvas');
+      _canvas.className = 'net-anim-canvas';
+      vizWrap.appendChild(_canvas);
+      _ctx = _canvas.getContext('2d');
+    }
+    const vb = svg.viewBox.baseVal;
+    if (_canvas.width !== vb.width || _canvas.height !== vb.height) {
+      _canvas.width = vb.width;
+      _canvas.height = vb.height;
+    }
+    return _ctx;
+  }
 
-function stopNetworkAnimation() {
-  isNetworkAnimating = false;
-  clearTimeout(networkAnimTimer);
+  function bumpGlow(colIdx) {
+    const g = _glows.find(g => g.col === colIdx);
+    if (g) g.v = 1;
+    else _glows.push({ col: colIdx, v: 1 });
+  }
 
-  if (!_animEdges.length) return;
+  // ── RAF tick ───────────────────────────────────────────────────────────
+  function tick(ts) {
+    if (!_running) return;
+    const dt = _lastTs === null ? 16 : Math.min(ts - _lastTs, 50);
+    _lastTs = ts;
 
-  requestAnimationFrame(() => {
-    _animEdges.forEach(edge => {
-      edge.element.classList.remove('edge-pulse');
-      edge.element.style.animationDelay = '';
-    });
-    _animEdges = [];
-  });
-}
+    const cols = buildColumns();
+    const N = cols.length;
+    const ctx = getCtx();
+    if (!ctx || N < 2) { _raf = requestAnimationFrame(tick); return; }
+
+    const step = (N - 1) / TRANSIT_MS * dt;
+
+    // ── Spawn forward (left → right) ───────────────────────────────
+    _fwdClk += dt;
+    if (_fwdClk >= SPAWN_EVERY && _waves.filter(w => w.dir === 1).length < MAX_EACH) {
+      _waves.push({ p: 0, dir: 1 });
+      bumpGlow(0);
+      _fwdClk = 0;
+    }
+
+    // ── Spawn backward (right → left), offset by half interval ─────
+    _bkwClk += dt;
+    if (_bkwClk >= SPAWN_EVERY && _waves.filter(w => w.dir === -1).length < MAX_EACH) {
+      _waves.push({ p: 0, dir: -1 });
+      bumpGlow(N - 1);
+      _bkwClk = 0;
+    }
+
+    // ── Advance waves + trigger column glows ────────────────────────
+    //
+    //  Both directions use the same scalar p (0 → N-1).
+    //  For forward: p tracks position left-to-right, boundary = floor(p).
+    //  For backward: p tracks distance-traveled from the right, and we
+    //  mirror it to find the actual boundary (N-2-floor(p)).
+    //  When floor(p) increments, the wave has just cleared a column:
+    //    forward  → glow the dest column  (= curr)
+    //    backward → glow the mirrored col (= N-1-curr)
+    for (const w of _waves) {
+      const prev = w.p | 0;
+      w.p += step;
+      const curr = Math.min(w.p | 0, N - 1);
+      if (curr > prev) {
+        if (w.dir === 1) bumpGlow(curr);
+        else bumpGlow(Math.max(0, N - 1 - curr));
+      }
+    }
+    _waves = _waves.filter(w => w.p < N - 1 + LINE_LEN);
+
+    ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+
+    // ── Node glows ─────────────────────────────────────────────────
+    for (const g of _glows) {
+      if (g.col >= N) continue;
+      for (const c of cols[g.col].circles) {
+        const gr = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 26);
+        gr.addColorStop(0, `rgba(255,255,255,${(g.v * 0.6).toFixed(3)})`);
+        gr.addColorStop(0.35, `rgba(170,160,255,${(g.v * 0.25).toFixed(3)})`);
+        gr.addColorStop(1, 'rgba(79,70,229,0)');
+        ctx.fillStyle = gr;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 26, 0, 6.283185);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 9, 0, 6.283185);
+        ctx.fillStyle = `rgba(255,255,255,${(g.v * 0.35).toFixed(3)})`;
+        ctx.fill();
+      }
+      g.v -= GLOW_DECAY * dt;
+    }
+    _glows = _glows.filter(g => g.v > 0.005);
+
+    // ── Traveling lines ────────────────────────────────────────────
+    //
+    //  For BOTH directions, we keep the same edge coordinate space
+    //  (src = left column, dst = right column, t ∈ [0,1] left→right).
+    //
+    //  Forward  (dir=1):  head moves 0→1, tail follows at head−LINE_LEN
+    //    cf    = min(floor(p), N-2)
+    //    t     = p − cf
+    //    headT = min(1, t)          tail = max(0, t − LINE_LEN)
+    //
+    //  Backward (dir=-1): head moves 1→0, tail follows at head+LINE_LEN
+    //    cf_fwd = min(floor(p), N-2)   ← same "virtual" counter as fwd
+    //    t      = p − cf_fwd           ← same 0→1 within each step
+    //    cf_act = N-2 − cf_fwd         ← actual boundary (mirrored)
+    //    headT  = max(0, 1-t)          tail = min(1, 1-t+LINE_LEN)
+    //
+    //  Drawing always goes from smaller t to larger t (moveTo→lineTo),
+    //  so the same 3-pass stroke call works for both directions.
+
+    ctx.lineCap = 'round';
+
+    for (const w of _waves) {
+      const cfv = Math.min(w.p | 0, N - 2);  // virtual boundary counter
+      const t = w.p - cfv;                  // fraction, 0→1+ per step
+
+      let cf, headT, tailT;
+
+      if (w.dir === 1) {
+        cf = cfv;
+        headT = Math.min(1, t);
+        tailT = Math.max(0, t - LINE_LEN);
+      } else {
+        cf = N - 2 - cfv;                  // mirror to actual boundary
+        headT = Math.max(0, 1 - t);           // head: 1→0 (right-to-left)
+        tailT = Math.min(1, 1 - t + LINE_LEN);// tail: stays right of head
+      }
+
+      // loT/hiT are the two endpoints in edge-space, lo < hi always
+      const loT = Math.min(headT, tailT);
+      const hiT = Math.max(headT, tailT);
+      if (hiT - loT < 0.001) continue;
+
+      const midT = (loT + hiT) / 2;
+      const alpha = Math.sin(midT * Math.PI);   // bell: bright mid-edge, dim at nodes
+      if (alpha < 0.01) continue;
+
+      const cA = cols[cf];
+      const cB = cols[cf + 1];
+
+      // Build one Path2D for all edges at this boundary; reuse for 3 passes
+      const edgePath = new Path2D();
+      for (const a of cA.circles) {
+        for (const b of cB.circles) {
+          edgePath.moveTo(a.x + (b.x - a.x) * loT, a.y + (b.y - a.y) * loT);
+          edgePath.lineTo(a.x + (b.x - a.x) * hiT, a.y + (b.y - a.y) * hiT);
+        }
+      }
+
+      // Pass 1 — soft glow halo
+      ctx.globalAlpha = alpha * 0.22;
+      ctx.strokeStyle = 'rgba(210,205,255,1)';
+      ctx.lineWidth = 3.0;
+      ctx.stroke(edgePath);
+
+      // Pass 2 — dark outline (wider than core, peeks out both sides)
+      ctx.globalAlpha = alpha * 0.82;
+      ctx.strokeStyle = 'rgba(12,10,26,1)';
+      ctx.lineWidth = 1.6;
+      ctx.stroke(edgePath);
+
+      // Pass 3 — bright white core (thin, sits inside the outline)
+      ctx.globalAlpha = alpha * 0.96;
+      ctx.strokeStyle = 'rgba(255,255,255,1)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke(edgePath);
+    }
+
+    ctx.globalAlpha = 1;
+    _raf = requestAnimationFrame(tick);
+  }
+
+  // ── Public API ─────────────────────────────────────────────────────────
+  window.startNetworkAnimation = function () {
+    if (_running) return;
+    _running = true;
+    _waves = [];
+    _glows = [];
+    _lastTs = null;
+    _fwdClk = SPAWN_EVERY;        // forward fires immediately
+    _bkwClk = SPAWN_EVERY / 2;   // backward offset by half interval
+    const card = vizWrap.closest('.card');
+    if (card) card.classList.add('net-animating');
+    _raf = requestAnimationFrame(tick);
+  };
+
+  window.stopNetworkAnimation = function () {
+    _running = false;
+    if (_raf) { cancelAnimationFrame(_raf); _raf = null; }
+    if (_ctx && _canvas) {
+      _ctx.globalAlpha = 1;
+      _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+    }
+    _waves = [];
+    _glows = [];
+    _lastTs = null;
+    const card = vizWrap.closest('.card');
+    if (card) card.classList.remove('net-animating');
+  };
+
+})();
+
+
+
+
+
 
 /* Onboarding 
    showOnboarding()   – called once on page load
