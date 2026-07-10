@@ -76,6 +76,7 @@ train_size = train_X.shape[1]
 import asyncio
 import json
 import websockets
+import concurrent.futures
 #hellos
 test_X = np.load(os.path.join("./mnist_data", "test_X.npy")).astype(np.float32) / 255.0
 
@@ -97,44 +98,84 @@ test_X /= std_ith_features
 
 
 
-
-# Global variables for Prediction function
-global_model_weights = []
-global_model_bias = []
-
 async def socket_handler(socket):
     try:
         async for message in socket:
             data = json.loads(message)
             if data.get("message_type") == "TRAINING_CONFIG":
                 await training_queue.put({"socket": socket, "data": data.get("message_content")})
+                await socket.send(json.dumps({"type": "TRAINING_QUEUED"}))
             if data.get("message_type") == "DIGIT_DATA":
                 digit_data = data.get("message_content")
-
-                predicted_digit = await Predict_digit(digit_data)
+                predicted_digit = await Predict_digit(digit_data, socket.model_weights. socket.model_bias)
                 await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
 
     except websockets.exceptions.ConnectionClosed:
-        pass
+        print("CLient closed the web/disconnected")
 
             
 training_queue = asyncio.Queue()
+thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent_thread)
+
 async def modelTraining_task():
+    main_event_loop = asyncio.get_running_loop()
+
     while True:
         training_request = await training_queue.get()
         socket = training_request["socket"]
         training_data = training_request["data"]
-        await train_model(socket, training_data) #In this function we will send the model accuracy after every epoch
-        await socket.send(json.dumps({"type": "TRAINING_FINISHED"}))
+        def progress_callback(message_type, content):
+            asyncio.run_coroutine_threadsafe(
+                socket.sends(json.dumps({"type": message_type, "content": content})),
+                main_event_loop
+            )
+        try:
+            model_weights, model_bias = main_event_loop.run_in_executor(
+                thread_pool,
+                train_model,
+                training_data, 
+                progress_callback
+            )
+            socket.model_weights = model_weights
+            socket.model_bias = model_bias
+        except Exception as e:
+            print("Error happened in thread" + str(e))
+        finally:
+            training_queue.task_done()
+        
                
+max_concurrent_thread = 2
 
 async def main():
-    asyncio.create_task(modelTraining_task())
+    for i in max_concurrent_thread:
+        asyncio.create_task(modelTraining_task())
     async with websockets.serve(socket_handler,"0.0.0.0", 6767):
         await asyncio.Future()
 
-async def train_model(socket, training_data):
-    global global_model_weights, global_model_bias
+
+
+
+
+async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
+    digit_array = np.array(digit_data).astype(np.float32)
+
+    #Normalize prediction data identically to training data
+    digit_array = digit_array.reshape(784, 1)
+    epsilon = 1e-8
+    test_H = (digit_array - mean_ith_features) / (std_ith_features + epsilon)
+    
+    #Feedforward logic
+    for k in range(len(trained_model_weights)-1):
+        M = trained_model_weights[k] @ test_H + trained_model_bias[k]
+        test_H = np.maximum(0, M)
+        
+    final_M = trained_model_weights[-1] @ test_H + trained_model_bias[-1]
+    
+    predicted_digit = int(np.argmax(final_M))
+    return predicted_digit
+
+async def train_model(training_data, progress_callback):
+
     epochs = training_data.get("epochs")
     batchSize = training_data.get("batchSize")
     dropout_enabled = training_data.get("dropout_enabled")
@@ -308,7 +349,7 @@ async def train_model(socket, training_data):
                 if k > 0:
                     dL_dH = model_weights[k].T @ dL_dM_k
 
-            #4. Update Weights and Bias 
+            #4. Update W and b with gradient descent
             for k in range(len(model_weights)):
                 if regularization_enabled:
                     dL_dW[k] += 2 * regularization_parameter * model_weights[k] #derivative of regularlization part 
@@ -320,11 +361,8 @@ async def train_model(socket, training_data):
         avg_loss = epoch_total_loss / number_of_batches
         
         #Send loss socket to update chart
-        await socket.send(json.dumps({
-            "type": "LOSS_UPDATE", 
-            "content": {"epoch": epoch+1, "loss": float(avg_loss)}
-        }))
-        await asyncio.sleep(0.1)
+        progress_callback("LOSS_UPDATE", {"epoch": epoch+1, "loss": float(avg_loss)})
+        
         
         #Test the newly updated weight on test_X and test_Y then send this data back to browser
         test_batchSize = test_X.shape[1]
@@ -341,35 +379,10 @@ async def train_model(socket, training_data):
         accuracy = (correct_predictions / test_batchSize) * 100
         
         #Send accuracy socket to update chart
-        await socket.send(json.dumps({
-            "type": "ACCURACY_UPDATE", 
-            "content": {"epoch": epoch+1, "acc": float(accuracy)}
-        }))
-        await asyncio.sleep(0.1)
-
-    #Save to global scope for prediction later
-    global_model_weights = model_weights
-    global_model_bias = model_bias
+        progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "loss": float(accuracy)})
 
 
-async def Predict_digit(digit_data):
-    digit_array = np.array(digit_data).astype(np.float32)
-
-    #Normalize prediction data identically to training data
-    digit_array = digit_array.reshape(784, 1)
-    epsilon = 1e-8
-    test_H = (digit_array - mean_ith_features) / (std_ith_features + epsilon)
-    
-    #Feedforward logic
-    for k in range(len(global_model_weights)-1):
-        M = global_model_weights[k] @ test_H + global_model_bias[k]
-        test_H = np.maximum(0, M)
-        
-    final_M = global_model_weights[-1] @ test_H + global_model_bias[-1]
-    
-    predicted_digit = int(np.argmax(final_M))
-    return predicted_digit
-
+        return model_weights, model_bias
 
 if __name__ == "__main__":
     asyncio.run(main())

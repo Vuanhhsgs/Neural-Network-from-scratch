@@ -511,13 +511,35 @@ function predictTriggered() {
   startNetworkAnimation();
 }
 
-
+let queueInterval = null;
 socket.onmessage = (event) => {
   const received_data = JSON.parse(event.data);
   if (received_data.type == "TRAINING_FINISHED") {
     FINISHED_TRAINING = true;
+
     stopNetworkAnimation();
+    if (queueInterval) {
+      clearInterval(queueInterval);
+      queueInterval = null;
+    }
+    const trainBtn = document.getElementById("trainBtn");
+    trainBtn.innerText = "Train";
+    trainBtn.disabled = false;
   }
+  if (received_data.type == "TRAINING_QUEUED") {
+    const trainBtn = document.getElementById("trainBtn");
+    trainBtn.disabled = true;
+
+    if (queueInterval) { clearInterval(queueInterval); }
+    let dotCount = 1;
+
+    queueInterval = setInterval(() => {
+      trainBtn.innerText = `Your training order is in queue ${".".repeat(dotCount)}`;
+      dotCount = (dotCount % 3) + 1;
+    }, 500); //update every 0.5s
+  }
+
+
   if (received_data.type == "PREDICT_FINISHED") {
     setTimeout(() => {
       stop_cycle_and_replace(received_data.content);
