@@ -542,6 +542,11 @@ socket.onmessage = (event) => {
     }
     trainBtn.disabled = false;
     trainBtn.innerText = "Train";
+    lossHistory = []
+    accuracyHistory = []
+    renderLossChart(lossHistory);
+    renderAccuracyChart(accuracyHistory);
+
   }
 
   if (received_data.type == "TRAINING_STARTED") {
