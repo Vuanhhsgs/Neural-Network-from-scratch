@@ -425,7 +425,7 @@ function getNetworkConfig() {
   return {
     learningRate: parseFloat(document.getElementById('learningRate').value),
     epochs: clampInt(document.getElementById('epochs').value, 1, 100000),
-    trainSize: document.getElementById('trainSize').value,
+    trainSize: parseInt(document.getElementById('trainSize').value),
     batchSize: clampInt(document.getElementById('batchSize').value, 1, 100000),
     dropout_enabled: document.getElementById('dropoutEnabled').checked,
     dropout_rate: parseFloat(document.getElementById('dropoutRate').value),
