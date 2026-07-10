@@ -397,32 +397,25 @@ input:disabled {
 
 @keyframes slowDot {
   from {
-    /* This MUST match the total sum of the stroke-dasharray (4 + 396 = 400) */
-    stroke-dashoffset: 400px;
+    /* Unitless 400 to match the array sum */
+    stroke-dashoffset: 400;
   }
 
   to {
-    stroke-dashoffset: 0px;
+    stroke-dashoffset: 0;
   }
 }
 
 .edge-pulse {
-  /* 4px dot, followed by 396px of invisible empty space */
-  /* The massive gap ensures you only see one dot travelling at a time */
-  stroke-dasharray: 4px, 396px;
-
-  /* 3 seconds makes it travel slowly. Increase to 4s or 5s for even slower movement */
+  /* Unitless: 4 unit dot, 396 unit invisible gap */
+  stroke-dasharray: 4 396;
   animation: slowDot 3s linear infinite;
 
-  stroke: #ffffff;
-  /* Pure white */
-  stroke-width: 2.5px;
-  /* Thickness of the dot */
+  /* Visuals */
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2.5;
   stroke-linecap: round;
-  /* Turns the square dash into a perfect little circle/pill */
 
-  /* Keeps it clean and high-performance */
-  opacity: 0.8;
   will-change: stroke-dashoffset;
 }
 
