@@ -83,10 +83,10 @@ test_X = np.load(os.path.join("./mnist_data", "test_X.npy")).astype(np.float32) 
 test_X = test_X.T
 test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
 
-#Normalize training data (Vectorized to prevent 15 minute python loop bottleneck)
+#Normalize training data(mean = 0 std = 1)
 mean_ith_features = np.mean(train_X, axis=1, keepdims=True)
 std_ith_features = np.std(train_X, axis=1, keepdims=True)
-std_ith_features[std_ith_features == 0] = 1 #prevent division by zero
+std_ith_features[std_ith_features == 0] = 1 #prevent divide by 0
 
 train_X -= mean_ith_features
 train_X /= std_ith_features
