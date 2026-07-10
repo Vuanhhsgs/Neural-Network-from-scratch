@@ -395,9 +395,10 @@ input:disabled {
 
 /* NEURON FIRING ANIMATIONS */
 
-@keyframes edgePulse {
+@keyframes slowDot {
   from {
-    stroke-dashoffset: 32px;
+    /* This MUST match the total sum of the stroke-dasharray (4 + 396 = 400) */
+    stroke-dashoffset: 400px;
   }
 
   to {
@@ -406,27 +407,22 @@ input:disabled {
 }
 
 .edge-pulse {
-  stroke-dasharray: 8px 24px;
-  animation: edgePulse 1.2s linear infinite;
+  /* 4px dot, followed by 396px of invisible empty space */
+  /* The massive gap ensures you only see one dot travelling at a time */
+  stroke-dasharray: 4px, 396px;
 
-  /* 1. THE NEON COLOR */
-  /* Pure white looks flat. A bright cyan, neon blue, or electric purple naturally looks like it's glowing */
-  stroke: #00e5ff;
+  /* 3 seconds makes it travel slowly. Increase to 4s or 5s for even slower movement */
+  animation: slowDot 3s linear infinite;
 
-  /* 2. THICKER STROKE */
-  /* Compensate for the lost shadow by making the core line slightly thicker */
+  stroke: #ffffff;
+  /* Pure white */
   stroke-width: 2.5px;
+  /* Thickness of the dot */
   stroke-linecap: round;
+  /* Turns the square dash into a perfect little circle/pill */
 
-  /* 3. THE BLEND MODE (The Magic Bullet) */
-  /* 'screen' or 'plus-lighter' makes overlapping lines brighten up and bleed into each other like real light. 
-     This costs ZERO extra processing power compared to a filter. */
-  mix-blend-mode: screen;
-
-  /* 4. SOFTEN THE EDGES */
-  /* Dropping the opacity slightly takes away the harsh, pixelated edge of a raw SVG line */
-  opacity: 0.85;
-
+  /* Keeps it clean and high-performance */
+  opacity: 0.8;
   will-change: stroke-dashoffset;
 }
 
