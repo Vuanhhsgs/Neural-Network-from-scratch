@@ -180,8 +180,8 @@ async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
 def train_model(training_data, progress_callback):
 
     epochs = training_data.get("epochs")
-    train_size = training_data.get("trainSize")
-    batchSize = training_data.get("batchSize")
+    train_size = int(training_data.get("trainSize"))
+    batchSize = int(training_data.get("batchSize"))
     dropout_enabled = training_data.get("dropout_enabled")
     dropout_rate = training_data.get("dropout_rate")
     regularization_enabled = training_data.get("regularization_enabled")
