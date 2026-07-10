@@ -1,3 +1,17 @@
+//Make it so that the maximum value of batchSize has to be always be the input of trainSize
+const trainSizeInput = document.getElementById('trainSize');
+const batchSizeInput = document.getElementById('batchSize');
+
+function syncBatchSizeMax() {
+  batchSizeInput.max = trainSizeInput.value;
+  if (parseInt(batchSizeInput.value) > parseInt(trainSizeInput.value)) {
+    batchSizeInput.value = trainSizeInput.value;
+  }
+}
+syncBatchSizeMax();
+trainSizeInput.addEventListener('input', syncBatchSizeMax);
+
+
 /// Render the visualization of neural network based on users' custom config///
 
 
@@ -411,6 +425,7 @@ function getNetworkConfig() {
   return {
     learningRate: parseFloat(document.getElementById('learningRate').value),
     epochs: clampInt(document.getElementById('epochs').value, 1, 100000),
+    trainSize: document.getElementById('trainSize').value,
     batchSize: clampInt(document.getElementById('batchSize').value, 1, 100000),
     dropout_enabled: document.getElementById('dropoutEnabled').checked,
     dropout_rate: parseFloat(document.getElementById('dropoutRate').value),

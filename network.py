@@ -71,7 +71,7 @@ test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
 
 train_X = train_X.T  #now it's a R^{d * training_size} matrix with d being the dimension of each X
 test_X = test_X.T
-train_size = train_X.shape[1]
+
 
 import asyncio
 import json
@@ -180,6 +180,7 @@ async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
 def train_model(training_data, progress_callback):
 
     epochs = training_data.get("epochs")
+    train_size = training_data.get("trainSize")
     batchSize = training_data.get("batchSize")
     dropout_enabled = training_data.get("dropout_enabled")
     dropout_rate = training_data.get("dropout_rate")
