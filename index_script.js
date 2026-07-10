@@ -179,10 +179,10 @@ function renderNetwork() {
     '<svg viewBox="0 0 ' + totalWidth + ' ' + HEIGHT + '" preserveAspectRatio="xMidYMid meet" ' +
     'style="min-width:' + Math.max(480, totalWidth) + 'px">' + parts.join('') + '</svg>';
 }
-let accuracyHistory = [];
+let accuracyHistory = [76, 80, 85, 89, 91, 93, 97];
 
 function renderAccuracyChart(history) {
-  accuracyHistory = history || accuracyHistory;
+  accuracyHistory = history;
   const W = 360, H = 150, L = 34, B = 26, T = 12, Rp = 10;
   const plotW = W - L - Rp, plotH = H - T - B;
 
@@ -231,7 +231,7 @@ renderAccuracyChart(accuracyHistory);
 let lossHistory = [];
 
 function renderLossChart(history) {
-  lossHistory = history || lossHistory;
+  lossHistory = history;
 
   const W = 360, H = 150, L = 34, B = 26, T = 12, Rp = 10;
   const plotW = W - L - Rp, plotH = H - T - B;
@@ -536,25 +536,41 @@ socket.onmessage = (event) => {
 }
 
 
-/*Network Firing Animation Controller*/
+/* Network Firing Animation Controller */
 let networkAnimTimer = null;
 let isNetworkAnimating = false;
-let _animEdges = [];
+let _animEdges = []; // Will now store objects: { element, x }
 
 function startNetworkAnimation() {
   stopNetworkAnimation();
-  _animEdges = Array.from(document.querySelectorAll('#vizWrap svg line'));
-  if (!_animEdges.length) return;
 
-  const xs = _animEdges.map(e => parseFloat(e.getAttribute('x1')));
+  const lines = document.querySelectorAll('#vizWrap svg line');
+  if (!lines.length) return;
+
+  // PHASE 1: BATCH READS
+  // Read all data first without touching styles to prevent layout thrashing
+  _animEdges = Array.from(lines).map(line => {
+    // .x1.baseVal.value is significantly faster than getAttribute() for SVGs
+    return {
+      element: line,
+      x: line.x1.baseVal.value
+    };
+  });
+
+  const xs = _animEdges.map(edge => edge.x);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
+  const range = (maxX - minX) || 1; // Fallback to 1 to prevent division by zero
 
-  _animEdges.forEach(e => {
-    const x = parseFloat(e.getAttribute('x1'));
-    const delay = ((x - minX) / (maxX - minX)) * 1.2; // 0s to 1.2s delay left→right
-    e.style.animationDelay = `-${delay}s`; // negative so it starts mid-animation, not blank
-    e.classList.add('edge-pulse');
+  // PHASE 2: BATCH WRITES
+  // Apply all visual changes in the next available frame
+  requestAnimationFrame(() => {
+    _animEdges.forEach(edge => {
+      // Scale delay up to 1.5s based on position
+      const delay = ((edge.x - minX) / range) * 1.5;
+      edge.element.style.animationDelay = `-${delay}s`;
+      edge.element.classList.add('edge-pulse');
+    });
   });
 
   isNetworkAnimating = true;
@@ -563,11 +579,17 @@ function startNetworkAnimation() {
 function stopNetworkAnimation() {
   isNetworkAnimating = false;
   clearTimeout(networkAnimTimer);
-  _animEdges.forEach(e => {
-    e.classList.remove('edge-pulse');
-    e.style.animationDelay = '';
+
+  if (!_animEdges.length) return;
+
+  // Batch DOM cleanup to maintain high frame rate when stopping
+  requestAnimationFrame(() => {
+    _animEdges.forEach(edge => {
+      edge.element.classList.remove('edge-pulse');
+      edge.element.style.animationDelay = '';
+    });
+    _animEdges = [];
   });
-  _animEdges = [];
 }
 
 /* ── Onboarding ─────────────────────────────────────────────────

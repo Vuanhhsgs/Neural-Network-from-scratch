@@ -397,7 +397,7 @@ input:disabled {
 
 @keyframes edgePulse {
   from {
-    stroke-dashoffset: 24;
+    stroke-dashoffset: 32;
   }
 
   to {
@@ -406,11 +406,18 @@ input:disabled {
 }
 
 .edge-pulse {
-  stroke-dasharray: 2 22;
-  animation: edgePulse 1.8s linear infinite;
-  stroke: rgba(255, 255, 255, 0.55);
-  stroke-width: 1.5px;
+
+  stroke-dasharray: 8 24;
+  animation: edgePulse 1.2s linear infinite;
+
+
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2px;
+  stroke-linecap: round;
+
+
   will-change: stroke-dashoffset;
+  transform: translateZ(0);
 }
 
 /* ── Onboarding spotlight ──────────────────────────────────────── */

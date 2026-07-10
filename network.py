@@ -310,11 +310,10 @@ async def train_model(socket, training_data):
 
             #4. Update Weights and Bias 
             for k in range(len(model_weights)):
-                grad_W = dL_dW[k]
                 if regularization_enabled:
-                    grad_W += 2 * regularization_parameter * model_weights[k]
+                    dL_dW[k] += 2 * regularization_parameter * model_weights[k] #derivative of regularlization part 
                     
-                model_weights[k] -= learningRate * grad_W
+                model_weights[k] -= learningRate * dL_dW[k]
                 model_bias[k] -= learningRate * dL_dB[k]
 
         #End epoch and caculate avg loss
@@ -325,7 +324,7 @@ async def train_model(socket, training_data):
             "type": "LOSS_UPDATE", 
             "content": {"epoch": epoch+1, "loss": float(avg_loss)}
         }))
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
         
         #Test the newly updated weight on test_X and test_Y then send this data back to browser
         test_batchSize = test_X.shape[1]
@@ -346,7 +345,7 @@ async def train_model(socket, training_data):
             "type": "ACCURACY_UPDATE", 
             "content": {"epoch": epoch+1, "acc": float(accuracy)}
         }))
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
 
     #Save to global scope for prediction later
     global_model_weights = model_weights
