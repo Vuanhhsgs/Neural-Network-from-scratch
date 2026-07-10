@@ -397,27 +397,29 @@ input:disabled {
 
 @keyframes edgePulse {
   from {
-    stroke-dashoffset: 32;
+    /* STRICT CSS: Must include 'px' or the browser ignores the animation entirely */
+    stroke-dashoffset: 32px;
   }
 
   to {
-    stroke-dashoffset: 0;
+    stroke-dashoffset: 0px;
   }
 }
 
 .edge-pulse {
-
-  stroke-dasharray: 8 24;
+  /* Added 'px' and commas for maximum cross-browser compatibility */
+  stroke-dasharray: 8px, 24px;
   animation: edgePulse 1.2s linear infinite;
-
 
   stroke: rgba(255, 255, 255, 0.9);
   stroke-width: 2px;
   stroke-linecap: round;
 
+  /* Optional Glow */
+  filter: drop-shadow(0 0 4px rgba(100, 200, 255, 0.6));
 
+  /* Kept performance hint, removed the buggy translateZ */
   will-change: stroke-dashoffset;
-  transform: translateZ(0);
 }
 
 /* ── Onboarding spotlight ──────────────────────────────────────── */
