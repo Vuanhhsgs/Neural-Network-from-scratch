@@ -380,10 +380,11 @@ function getPixels() {
   return out;
 }
 /// Model prediction ///
+const predictBtn = document.getElementById('predictBtn');
 const predictionBox = document.getElementById('prediction');
 let isCycling = false;
-
-function startPredictionCycle() {
+let isPredicting = false;
+function startPredictionCycle(){
   predictionBox.classList.remove('idle');
   predictionBox.classList.add('cycling');
   isCycling = true;
@@ -397,12 +398,17 @@ function runCycleLoop() {
 
 function stop_cycle_and_replace(predicted_digit) {
   isCycling = false;
-  predictionBox.classList.remove('cycling');
+  isPredicting = false;
+  predictBtn.disabled = false;
+  predictionBox.classList.re'cye('cycling');
   predictionBox.classList.add('idle');
   predictionBox.textContent = predicted_digit;
 }
-document.getElementById('predictBtn').addEventListener('click', () => {
 
+document.getElementById('predictBtn').addEventListener('click', () => {
+  if(isPredicting){ return; }
+  isPredicting = true;
+  predictBtn.disabled = true;
   if (!FINISHED_TRAINING) {
     showToast('Train your model first before predicting.', 'warn');
     return;
@@ -574,10 +580,8 @@ socket.onmessage = (event) => {
   }
 
   if (received_data.type == "PREDICT_FINISHED") {
-    setTimeout(() => {
-      stop_cycle_and_replace(received_data.content);
-      stopNetworkAnimation();
-    }, 2000);
+    stop_cycle_and_replace(received_data.content);
+    stopNetworkAnimation();
   }
   if (received_data.type == "LOSS_UPDATE") {
     lossHistory.push(received_data.content);
