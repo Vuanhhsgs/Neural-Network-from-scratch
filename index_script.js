@@ -400,7 +400,7 @@ function stop_cycle_and_replace(predicted_digit) {
   isCycling = false;
   isPredicting = false;
   predictBtn.disabled = false;
-  predictionBox.classList.re'cye('cycling');
+  predictionBox.classList.remove('cycling');
   predictionBox.classList.add('idle');
   predictionBox.textContent = predicted_digit;
 }
