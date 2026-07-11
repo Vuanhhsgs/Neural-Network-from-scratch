@@ -380,11 +380,10 @@ function getPixels() {
   return out;
 }
 /// Model prediction ///
-const predictBtn = document.getElementById('predictBtn');
 const predictionBox = document.getElementById('prediction');
 let isCycling = false;
-let isPredicting = false;
-function startPredictionCycle(){
+
+function startPredictionCycle() {
   predictionBox.classList.remove('idle');
   predictionBox.classList.add('cycling');
   isCycling = true;
@@ -398,17 +397,12 @@ function runCycleLoop() {
 
 function stop_cycle_and_replace(predicted_digit) {
   isCycling = false;
-  isPredicting = false;
-  predictBtn.disabled = false;
   predictionBox.classList.remove('cycling');
   predictionBox.classList.add('idle');
   predictionBox.textContent = predicted_digit;
 }
-
 document.getElementById('predictBtn').addEventListener('click', () => {
-  if(isPredicting){ return; }
-  isPredicting = true;
-  predictBtn.disabled = true;
+
   if (!FINISHED_TRAINING) {
     showToast('Train your model first before predicting.', 'warn');
     return;
@@ -580,8 +574,10 @@ socket.onmessage = (event) => {
   }
 
   if (received_data.type == "PREDICT_FINISHED") {
-    stop_cycle_and_replace(received_data.content);
-    stopNetworkAnimation();
+    setTimeout(() => {
+      stop_cycle_and_replace(received_data.content);
+      stopNetworkAnimation();
+    }, 2000);
   }
   if (received_data.type == "LOSS_UPDATE") {
     lossHistory.push(received_data.content);
