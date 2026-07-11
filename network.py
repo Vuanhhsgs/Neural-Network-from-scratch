@@ -101,16 +101,21 @@ import threading
 
 async def socket_handler(socket):
     socket_closed = threading.Event() #a flag to check whether socket is closed or not
+    training_cancelled = threading.Event() #a flag to check if training is requested to cancelled from an user
     try:
         async for message in socket:
             data = json.loads(message)
             if data.get("message_type") == "TRAINING_CONFIG":
-                await training_queue.put({"socket": socket, "data": data.get("message_content"), "socket_closed": socket_closed})
+                await training_queue.put({"socket": socket, "data": data.get("message_content"), "socket_closed": socket_closed, "training_cancelled": training_cancelled})
                 await socket.send(json.dumps({"type": "TRAINING_QUEUED"}))
             if data.get("message_type") == "DIGIT_DATA":
                 digit_data = data.get("message_content")
                 predicted_digit = await Predict_digit(digit_data, socket.model_weights, socket.model_bias)
                 await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
+            if data.get("message_type") == "CANCEL_TRAINING":
+                training_cancelled.set()
+
+
     except websockets.exceptions.ConnectionClosed:
         print("CLient closed the web/disconnected")
     finally:
@@ -128,11 +133,12 @@ async def modelTraining_task():
         socket = training_request["socket"]
         training_data = training_request["data"]
         socket_closed = training_request["socket_closed"]
+        training_cancelled = training_request["training_cancelled"]
         if socket_closed.is_set():
             training_queue.task_done()
             continue
         try:
-            await socket.send(json.dumps({"type": "TRAINING_STARTED"}))
+            
             
             def progress_callback(message_type, content):
                 if socket_closed.is_set():
@@ -146,14 +152,20 @@ async def modelTraining_task():
                 except:
                     socket_closed.set()
                     raise InterruptedError("Can't connect to socket")
+
+            await socket.send(json.dumps({"type": "TRAINING_STARTED"}))
             model_weights, model_bias = await main_event_loop.run_in_executor(
                 thread_pool,
                 train_model,
                 training_data, 
                 progress_callback,
-                socket_closed
+                socket_closed,
+                training_cancelled
             )
             if model_weights is None:
+                continue
+            if model_weights == "cancelled":
+                await socket.send(json.dumps({"type": "TRAINING_CANCELLED"}))
                 continue
             socket.model_weights = model_weights
             socket.model_bias = model_bias
@@ -194,9 +206,11 @@ async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
     predicted_digit = int(np.argmax(final_M))
     return predicted_digit
 
-def train_model(training_data, progress_callback, socket_closed):
+def train_model(training_data, progress_callback, socket_closed, training_cancelled):
     if socket_closed.is_set():
         return None, None 
+    if training_cancelled.is_set():
+        return "cancelled", "cancelled"
     epochs = training_data.get("epochs")
     train_size = int(training_data.get("trainSize"))
     batchSize = int(training_data.get("batchSize"))
@@ -230,6 +244,8 @@ def train_model(training_data, progress_callback, socket_closed):
     for epoch in range(epochs):
         if socket_closed.is_set():
             return None, None 
+        if training_cancelled.is_set():
+            return "cancelled", "cancelled" 
         #sample data        
         random_index = np.random.permutation(train_size)
         this_train_X = train_X[:, random_index]
@@ -240,6 +256,8 @@ def train_model(training_data, progress_callback, socket_closed):
         for j in range(0, batchSize*number_of_batches, batchSize):
             if socket_closed.is_set():
                 return None, None 
+            if training_cancelled.is_set():
+                return "cancelled", "cancelled" 
             if(j >= train_size):
                 break
                 
@@ -388,6 +406,10 @@ def train_model(training_data, progress_callback, socket_closed):
         
         #Send loss socket to update chart
         try:
+            if socket_closed.is_set():
+                return None, None 
+            if training_cancelled.is_set():
+                return "cancelled", "cancelled" 
             progress_callback("LOSS_UPDATE", {"epoch": epoch+1, "loss": float(avg_loss)})
         except InterruptedError:
             return None, None
@@ -408,6 +430,10 @@ def train_model(training_data, progress_callback, socket_closed):
         
         #Send accuracy socket to update chart
         try:
+            if socket_closed.is_set():
+                return None, None 
+            if training_cancelled.is_set():
+                return "cancelled", "cancelled" 
             progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "acc": float(accuracy)})
         except InterruptedError:
             return None, None

@@ -533,14 +533,24 @@ function predictTriggered() {
   send_message(JSON.stringify(predict_message));
   startNetworkAnimation();
 }
+let isTraining = false;
+cancelBtn = document.getElementById("cancelBtn");
+cancelBtn.addEventListener('click', () => {
+  if (!isTraining) return;
+  send_message(JSON.stringify({ message_type: "CANCEL_TRAINING" }));
+});
+
 
 let buttonInterval = null;
 
 socket.onmessage = (event) => {
   const received_data = JSON.parse(event.data);
   const trainBtn = document.getElementById("trainBtn");
-
+  if (received_data.type == "TRAINING_CANCELLED") {
+    isTraining = false;
+  }
   if (received_data.type == "TRAINING_FINISHED") {
+    isTraining = false;
     FINISHED_TRAINING = true;
     stopNetworkAnimation();
 
@@ -555,6 +565,7 @@ socket.onmessage = (event) => {
   }
 
   if (received_data.type == "TRAINING_STARTED") {
+    isTraining = true;
     lossHistory = [];
     accuracyHistory = [];
     document.getElementById('lossChartWrap').innerHTML = '';
