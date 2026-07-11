@@ -538,6 +538,7 @@ cancelBtn = document.getElementById("cancelBtn");
 cancelBtn.addEventListener('click', () => {
   if (!isTraining) return;
   cancelBtn.disabled = true;
+  cancelBtn.innerText = "Cancelling ...";
   send_message(JSON.stringify({ message_type: "CANCEL_TRAINING" }));
 });
 
@@ -549,6 +550,7 @@ socket.onmessage = (event) => {
   const trainBtn = document.getElementById("trainBtn");
   if (received_data.type == "TRAINING_CANCELLED") {
     cancelBtn.disabled = false;
+    cancelBtn.innerText = "Cancel";
     isTraining = false;
     stopNetworkAnimation();
     if (buttonInterval) {
