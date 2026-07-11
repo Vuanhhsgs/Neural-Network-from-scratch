@@ -548,6 +548,14 @@ socket.onmessage = (event) => {
   const trainBtn = document.getElementById("trainBtn");
   if (received_data.type == "TRAINING_CANCELLED") {
     isTraining = false;
+    stopNetworkAnimation();
+    if (buttonInterval) {
+      clearInterval(buttonInterval);
+      buttonInterval = null;
+    }
+    trainBtn.disabled = false;
+    trainBtn.innerText = "Train";
+
   }
   if (received_data.type == "TRAINING_FINISHED") {
     isTraining = false;
