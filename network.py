@@ -97,21 +97,24 @@ test_X -= mean_ith_features
 test_X /= std_ith_features
 
 
+import threading 
 
 async def socket_handler(socket):
+    socket_closed = threading.Event() #a flag to check whether socket is closed or not
     try:
         async for message in socket:
             data = json.loads(message)
             if data.get("message_type") == "TRAINING_CONFIG":
-                await training_queue.put({"socket": socket, "data": data.get("message_content")})
+                await training_queue.put({"socket": socket, "data": data.get("message_content"), "socket_closed": socket_closed})
                 await socket.send(json.dumps({"type": "TRAINING_QUEUED"}))
             if data.get("message_type") == "DIGIT_DATA":
                 digit_data = data.get("message_content")
                 predicted_digit = await Predict_digit(digit_data, socket.model_weights, socket.model_bias)
                 await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
-
     except websockets.exceptions.ConnectionClosed:
         print("CLient closed the web/disconnected")
+    finally:
+        socket_closed.set() #because in try the async for loop will keep running while socket is open and only got broken if there're some error or socket is closed 
 max_concurrent_thread = 2
             
 training_queue = asyncio.Queue()
@@ -124,27 +127,41 @@ async def modelTraining_task():
         training_request = await training_queue.get()
         socket = training_request["socket"]
         training_data = training_request["data"]
+        socket_closed = training_request["socket_closed"]
+        if socket_closed.is_set():
+            training_queue.task_done()
+            continue
         try:
             await socket.send(json.dumps({"type": "TRAINING_STARTED"}))
             
             def progress_callback(message_type, content):
-                asyncio.run_coroutine_threadsafe(
+                if socket_closed.is_set():
+                    raise InterruptedError("Socket is closed")
+                future = asyncio.run_coroutine_threadsafe(
                     socket.send(json.dumps({"type": message_type, "content": content})),
                     main_event_loop
                 )
+                try:
+                    future.result(timeout = 2)
+                except:
+                    socket_closed.set()
+                    raise InterruptedError("Can't connect to socket")
             model_weights, model_bias = await main_event_loop.run_in_executor(
                 thread_pool,
                 train_model,
                 training_data, 
-                progress_callback
+                progress_callback,
+                socket_closed
             )
+            if model_weights is None:
+                continue
             socket.model_weights = model_weights
             socket.model_bias = model_bias
             await socket.send(json.dumps({"type": "TRAINING_FINISHED"}))
         except Exception as e:
             print("Error happened in thread" + str(e))
         finally:
-            training_queue.task_done()
+            training_queue.task_done() #regardless the socket is closed or the training_request is finished, notify that this request is no longer in queue
         
                
 
@@ -177,8 +194,9 @@ async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
     predicted_digit = int(np.argmax(final_M))
     return predicted_digit
 
-def train_model(training_data, progress_callback):
-
+def train_model(training_data, progress_callback, socket_closed):
+    if socket_closed.is_set():
+        return None, None 
     epochs = training_data.get("epochs")
     train_size = int(training_data.get("trainSize"))
     batchSize = int(training_data.get("batchSize"))
@@ -210,6 +228,8 @@ def train_model(training_data, progress_callback):
     number_of_batches = math.ceil(train_size / batchSize)
     
     for epoch in range(epochs):
+        if socket_closed.is_set():
+            return None, None 
         #sample data        
         random_index = np.random.permutation(train_size)
         this_train_X = train_X[:, random_index]
@@ -218,6 +238,8 @@ def train_model(training_data, progress_callback):
         epoch_total_loss = 0
 
         for j in range(0, batchSize*number_of_batches, batchSize):
+            if socket_closed.is_set():
+                return None, None 
             if(j >= train_size):
                 break
                 
@@ -308,7 +330,7 @@ def train_model(training_data, progress_callback):
             epoch_total_loss += Loss
 
 
-            #Backpropagation 
+            #Backpropagation and update model parameters 
             
             #calculate dL/dM_last
             dL_dM = np.copy(predicted_Y)
@@ -365,8 +387,10 @@ def train_model(training_data, progress_callback):
         avg_loss = epoch_total_loss / number_of_batches
         
         #Send loss socket to update chart
-        progress_callback("LOSS_UPDATE", {"epoch": epoch+1, "loss": float(avg_loss)})
-        
+        try:
+            progress_callback("LOSS_UPDATE", {"epoch": epoch+1, "loss": float(avg_loss)})
+        except InterruptedError:
+            return None, None
         
         #Test the newly updated weight on test_X and test_Y then send this data back to browser
         test_batchSize = test_X.shape[1]
@@ -383,8 +407,10 @@ def train_model(training_data, progress_callback):
         accuracy = (correct_predictions / test_batchSize) * 100
         
         #Send accuracy socket to update chart
-        progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "acc": float(accuracy)})
-
+        try:
+            progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "acc": float(accuracy)})
+        except InterruptedError:
+            return None, None
 
     return model_weights, model_bias
 
