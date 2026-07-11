@@ -106,6 +106,7 @@ async def socket_handler(socket):
         async for message in socket:
             data = json.loads(message)
             if data.get("message_type") == "TRAINING_CONFIG":
+                training_cancelled.clear()
                 await training_queue.put({"socket": socket, "data": data.get("message_content"), "socket_closed": socket_closed, "training_cancelled": training_cancelled})
                 await socket.send(json.dumps({"type": "TRAINING_QUEUED"}))
             if data.get("message_type") == "DIGIT_DATA":
@@ -117,7 +118,7 @@ async def socket_handler(socket):
 
 
     except websockets.exceptions.ConnectionClosed:
-        print("CLient closed the web/disconnected")
+        print("CLient closed the web or got disconnected or refreshed")
     finally:
         socket_closed.set() #because in try the async for loop will keep running while socket is open and only got broken if there're some error or socket is closed 
 max_concurrent_thread = 2
@@ -137,21 +138,18 @@ async def modelTraining_task():
         if socket_closed.is_set():
             training_queue.task_done()
             continue
-        try:
-            
-            
+        if training_cancelled.is_set():
+            training_queue.task_done()
+            continue
+        try:     
             def progress_callback(message_type, content):
                 if socket_closed.is_set():
                     raise InterruptedError("Socket is closed")
-                future = asyncio.run_coroutine_threadsafe(
+                asyncio.run_coroutine_threadsafe(
                     socket.send(json.dumps({"type": message_type, "content": content})),
                     main_event_loop
                 )
-                try:
-                    future.result(timeout = 2)
-                except:
-                    socket_closed.set()
-                    raise InterruptedError("Can't connect to socket")
+
 
             await socket.send(json.dumps({"type": "TRAINING_STARTED"}))
             model_weights, model_bias = await main_event_loop.run_in_executor(
@@ -406,8 +404,6 @@ def train_model(training_data, progress_callback, socket_closed, training_cancel
         
         #Send loss socket to update chart
         try:
-            if socket_closed.is_set():
-                return None, None 
             if training_cancelled.is_set():
                 return "cancelled", "cancelled" 
             progress_callback("LOSS_UPDATE", {"epoch": epoch+1, "loss": float(avg_loss)})
@@ -430,8 +426,6 @@ def train_model(training_data, progress_callback, socket_closed, training_cancel
         
         #Send accuracy socket to update chart
         try:
-            if socket_closed.is_set():
-                return None, None 
             if training_cancelled.is_set():
                 return "cancelled", "cancelled" 
             progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "acc": float(accuracy)})
