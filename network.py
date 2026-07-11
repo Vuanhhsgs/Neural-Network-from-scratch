@@ -139,6 +139,7 @@ async def modelTraining_task():
             training_queue.task_done()
             continue
         if training_cancelled.is_set():
+            await socket.send(json.dumps({"type": "TRAINING_CANCELLED"}))
             training_queue.task_done()
             continue
         try:     
