@@ -381,12 +381,17 @@ function getPixels() {
 }
 /// Model prediction ///
 const predictionBox = document.getElementById('prediction');
+const predictBtn = document.getElementById('predictBtn');
+
 let isCycling = false;
+let isPredicting = false;
 
 function startPredictionCycle() {
   predictionBox.classList.remove('idle');
   predictionBox.classList.add('cycling');
   isCycling = true;
+  isPredicting = true;
+  predictBtn.disabled = true;
   runCycleLoop();
 }
 function runCycleLoop() {
@@ -397,6 +402,8 @@ function runCycleLoop() {
 
 function stop_cycle_and_replace(predicted_digit) {
   isCycling = false;
+  isPredicting = false;
+  predictBtn.disabled = false;
   predictionBox.classList.remove('cycling');
   predictionBox.classList.add('idle');
   predictionBox.textContent = predicted_digit;
@@ -519,6 +526,7 @@ function trainingTriggered() {
   }
 }
 function predictTriggered() {
+  if (isPredicting) { return; }
   startPredictionCycle();
   const digit_data = Array.from(getPixels());
   const predict_message = { message_type: "DIGIT_DATA", message_content: digit_data };
@@ -542,7 +550,7 @@ socket.onmessage = (event) => {
     }
     trainBtn.disabled = false;
     trainBtn.innerText = "Train";
-    
+
 
   }
 
@@ -574,10 +582,8 @@ socket.onmessage = (event) => {
   }
 
   if (received_data.type == "PREDICT_FINISHED") {
-    setTimeout(() => {
-      stop_cycle_and_replace(received_data.content);
-      stopNetworkAnimation();
-    }, 2000);
+    stop_cycle_and_replace(received_data.content);
+    stopNetworkAnimation();
   }
   if (received_data.type == "LOSS_UPDATE") {
     lossHistory.push(received_data.content);
