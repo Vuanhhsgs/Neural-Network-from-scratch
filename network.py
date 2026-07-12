@@ -1,3 +1,4 @@
+from http import cookiejar
 from asyncio import exceptions
 from asyncio import base_events
 import asyncio
@@ -402,7 +403,9 @@ def train_model(training_data, progress_callback, socket_closed, training_cancel
                     
                 model_weights[k] -= learningRate * dL_dW[k]
                 model_bias[k] -= learningRate * dL_dB[k]
-
+                batch_index = j // batchSize
+                if batch_index % 10 == 0:
+                    time.sleep(0.00001)
         #End epoch and caculate avg loss
         avg_loss = epoch_total_loss / number_of_batches
         
@@ -436,7 +439,6 @@ def train_model(training_data, progress_callback, socket_closed, training_cancel
         except InterruptedError:
             return None, None
 
-        time.sleep(0.001)
     return model_weights, model_bias
 
 if __name__ == "__main__":
