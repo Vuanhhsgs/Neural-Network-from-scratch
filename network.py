@@ -207,7 +207,7 @@ async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
     
     predicted_digit = int(np.argmax(final_M))
     return predicted_digit
-
+import time  
 def train_model(training_data, progress_callback, socket_closed, training_cancelled):
     if socket_closed.is_set():
         return None, None 
@@ -436,6 +436,7 @@ def train_model(training_data, progress_callback, socket_closed, training_cancel
         except InterruptedError:
             return None, None
 
+        time.sleep(0.001)
     return model_weights, model_bias
 
 if __name__ == "__main__":
