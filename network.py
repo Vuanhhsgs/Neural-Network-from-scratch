@@ -98,8 +98,11 @@ test_X /= std_ith_features
 
 
 import threading 
-
+async def safe_send(socket, msg):
+    async with socket.send_lock:
+        await socket.send(msg)
 async def socket_handler(socket):
+    socket.send_lock = asyncio.Lock()
     socket_closed = threading.Event() #a flag to check whether socket is closed or not
     training_cancelled = threading.Event() #a flag to check if training is requested to cancelled from an user
     try:
@@ -108,11 +111,11 @@ async def socket_handler(socket):
             if data.get("message_type") == "TRAINING_CONFIG":
                 training_cancelled.clear()
                 await training_queue.put({"socket": socket, "data": data.get("message_content"), "socket_closed": socket_closed, "training_cancelled": training_cancelled})
-                await socket.send(json.dumps({"type": "TRAINING_QUEUED"}))
+                await safe_send(socket, json.dumps({"type": "TRAINING_QUEUED"}))
             if data.get("message_type") == "DIGIT_DATA":
                 digit_data = data.get("message_content")
                 predicted_digit = await Predict_digit(digit_data, socket.model_weights, socket.model_bias)
-                await socket.send(json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
+                await safe_send(socket, json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
             if data.get("message_type") == "CANCEL_TRAINING":
                 training_cancelled.set()
 
@@ -139,7 +142,7 @@ async def modelTraining_task():
             training_queue.task_done()
             continue
         if training_cancelled.is_set():
-            await socket.send(json.dumps({"type": "TRAINING_CANCELLED"}))
+            await safe_send(socket, json.dumps({"type": "TRAINING_CANCELLED"}))
             training_queue.task_done()
             continue
         try:     
@@ -147,12 +150,12 @@ async def modelTraining_task():
                 if socket_closed.is_set():
                     raise InterruptedError("Socket is closed")
                 asyncio.run_coroutine_threadsafe(
-                    socket.send(json.dumps({"type": message_type, "content": content})),
+                    safe_send(socket, json.dumps({"type": message_type, "content": content})),
                     main_event_loop
                 )
 
 
-            await socket.send(json.dumps({"type": "TRAINING_STARTED"}))
+            await safe_send(socket, json.dumps({"type": "TRAINING_STARTED"}))
             model_weights, model_bias = await main_event_loop.run_in_executor(
                 thread_pool,
                 train_model,
@@ -164,11 +167,11 @@ async def modelTraining_task():
             if model_weights is None:
                 continue
             if model_weights == "cancelled":
-                await socket.send(json.dumps({"type": "TRAINING_CANCELLED"}))
+                await safe_send(socket, json.dumps({"type": "TRAINING_CANCELLED"}))
                 continue
             socket.model_weights = model_weights
             socket.model_bias = model_bias
-            await socket.send(json.dumps({"type": "TRAINING_FINISHED"}))
+            await safe_send(socket, json.dumps({"type": "TRAINING_FINISHED"}))
         except Exception as e:
             print("Error happened in thread" + str(e))
         finally:
