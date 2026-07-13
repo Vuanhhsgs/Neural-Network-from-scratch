@@ -122,9 +122,8 @@ async def socket_handler(socket):
 
 
     except websockets.exceptions.ConnectionClosed:
-        print("CLient closed the web or got disconnected or refreshed")
-    finally:
-        socket_closed.set() #because in try the async for loop will keep running while socket is open and only got broken if there're some error or socket is closed 
+        socket_closed.set()
+    
 max_concurrent_thread = 2
             
 training_queue = asyncio.Queue()
@@ -142,7 +141,7 @@ async def modelTraining_task():
         if socket_closed.is_set() or training_cancelled.is_set():
             training_queue.task_done()
             try:
-                await safe_send(socket, json.dumps({"type": "TRAINING_CANCELLED"}))
+                await safe_send(socket, json.dumps({ "type": "TRAINING_CANCELLED" }))
                 continue
             except:
                 continue
@@ -178,6 +177,7 @@ async def modelTraining_task():
                 model_weights,
                 model_bias
             )    
+            await asyncio.sleep(0.01)
             if socket_closed.is_set():
                 break
             if training_cancelled.is_set():
@@ -185,7 +185,7 @@ async def modelTraining_task():
                 break
             await safe_send(socket, json.dumps({"type": "LOSS_UPDATE", "content": {"epoch": epoch+1, "loss": float(avg_loss)}}))
             await safe_send(socket, json.dumps({"type": "ACCURACY_UPDATE", "content": {"epoch": epoch+1, "acc": float(accuracy)}}))
-            await asyncio.sleep(0.01)
+            
         if was_cancelled:
             await safe_send(socket, json.dumps({"type": "TRAINING_CANCELLED"}))
         elif not socket_closed.is_set():
