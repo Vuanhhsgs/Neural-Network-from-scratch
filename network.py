@@ -177,7 +177,7 @@ async def modelTraining_task():
                 model_weights,
                 model_bias
             )    
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.05)
             if socket_closed.is_set():
                 break
             if training_cancelled.is_set():
@@ -188,6 +188,7 @@ async def modelTraining_task():
             
         if was_cancelled:
             await safe_send(socket, json.dumps({"type": "TRAINING_CANCELLED"}))
+
         elif not socket_closed.is_set():
             socket.model_weights = model_weights
             socket.model_bias = model_bias
