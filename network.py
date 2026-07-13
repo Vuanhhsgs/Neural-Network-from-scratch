@@ -117,7 +117,8 @@ async def socket_handler(socket):
                 digit_data = data.get("message_content")
                 predicted_digit = await Predict_digit(digit_data, socket.model_weights, socket.model_bias)
                 await safe_send(socket, json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
-
+            if data.get("message_type") == "CANCEL_TRAINING":
+                training_cancelled.set()
 
 
     except websockets.exceptions.ConnectionClosed:
@@ -142,6 +143,7 @@ async def modelTraining_task():
             training_queue.task_done()
             try:
                 await safe_send(socket, json.dumps({"type": "TRAINING_CANCELLED"}))
+                continue
             except:
                 continue
         await safe_send(socket, json.dumps({"type": "TRAINING_STARTED"}))
@@ -156,7 +158,7 @@ async def modelTraining_task():
         model_bias = []
         model_weights = []
         for i in range(1, len(network_structure)):
-            # B is column vector: M = W@H + B
+            # B is column vector: M = W * H + B
             model_bias.append(np.full((network_structure[i], 1), 0.01))
             initial_weight = np.random.randn(network_structure[i], network_structure[i-1]) * math.sqrt(2/network_structure[i-1]) #best weight intialization for ReLU: distribution of element of weight matrix is normal with variance of sqrt(2/previous_layer)
             model_weights.append(initial_weight)
@@ -225,6 +227,7 @@ async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
     
     predicted_digit = int(np.argmax(final_M))
     return predicted_digit
+
 import time  
 def train_model_one_epoch(training_data, model_weights, model_bias):
     train_size = int(training_data.get("trainSize"))
@@ -391,8 +394,6 @@ def train_model_one_epoch(training_data, model_weights, model_bias):
             model_weights[k] -= learningRate * dL_dW[k]
             model_bias[k] -= learningRate * dL_dB[k]
             batch_index = j // batchSize
-            if batch_index % 10 == 0:
-                time.sleep(0.00001)
     #End epoch and caculate avg loss
     avg_loss = epoch_total_loss / number_of_batches
     
