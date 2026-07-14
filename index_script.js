@@ -537,9 +537,7 @@ let isTraining = false;
 cancelBtn = document.getElementById("cancelBtn");
 cancelBtn.addEventListener('click', () => {
   if (!isTraining) return;
-  cancelBtn.disabled = true;
-  cancelBtn.innerText = "Cancelling ...";
-  send_message(JSON.stringify({ message_type: "CANCEL_TRAINING" }));
+  location.reload();
 });
 
 
@@ -548,19 +546,6 @@ let buttonInterval = null;
 socket.onmessage = (event) => {
   const received_data = JSON.parse(event.data);
   const trainBtn = document.getElementById("trainBtn");
-  if (received_data.type == "TRAINING_CANCELLED") {
-    cancelBtn.disabled = false;
-    cancelBtn.innerText = "Cancel";
-    isTraining = false;
-    stopNetworkAnimation();
-    if (buttonInterval) {
-      clearInterval(buttonInterval);
-      buttonInterval = null;
-    }
-    trainBtn.disabled = false;
-    trainBtn.innerText = "Train";
-
-  }
 
   if (received_data.type == "TRAINING_FINISHED") {
     isTraining = false;
@@ -595,7 +580,7 @@ socket.onmessage = (event) => {
 
   if (received_data.type == "TRAINING_QUEUED") {
     trainBtn.disabled = true;
-
+    isTraining = true;
     if (buttonInterval) { clearInterval(buttonInterval); }
 
     let dotCount = 1;
