@@ -431,9 +431,9 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 function getNetworkConfig() {
   return {
     learningRate: parseFloat(document.getElementById('learningRate').value),
-    epochs: clampInt(document.getElementById('epochs').value, 1, 100000),
-    trainSize: parseInt(document.getElementById('trainSize').value),
-    batchSize: clampInt(document.getElementById('batchSize').value, 1, 100000),
+    epochs: clampInt(document.getElementById('epochs').value, 1, 1000),
+    trainSize: clampInt(document.getElementById('trainSize').value, 1, 60000),
+    batchSize: clampInt(document.getElementById('batchSize').value, 1, 60000),
     dropout_enabled: document.getElementById('dropoutEnabled').checked,
     dropout_rate: parseFloat(document.getElementById('dropoutRate').value),
     regularization_enabled: document.getElementById('regEnabled').checked,

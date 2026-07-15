@@ -63,10 +63,10 @@ np.save(os.path.join(DATA_DIR, "test_X.npy"), test_X)
 np.save(os.path.join(DATA_DIR, "test_Y.npy"), test_Y)
 """
 
-train_X = np.load("./mnist_data/train_X.npy").astype(np.float32) / 255.0
+train_X = np.load("./mnist_data/train_X.npy").astype(np.float32)/255.0
 train_Y = np.load(os.path.join("./mnist_data", "train_Y.npy")) #[9,3,2,0,...] being digits from 0 to 9
 
-test_X = np.load("./mnist_data/test_X.npy").astype(np.float32) / 255.0
+test_X = np.load("./mnist_data/test_X.npy").astype(np.float32)/255.0
 test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
 
 train_X = train_X.T  #now it's a R^{d * training_size} matrix with d being the dimension of each X
@@ -78,7 +78,7 @@ import json
 import websockets
 import concurrent.futures
 #hellos
-test_X = np.load(os.path.join("./mnist_data", "test_X.npy")).astype(np.float32) / 255.0
+test_X = np.load(os.path.join("./mnist_data", "test_X.npy")).astype(np.float32)/255.0
 
 test_X = test_X.T
 test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
@@ -181,7 +181,7 @@ async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
     #Normalize prediction data identically to training data
     digit_array = digit_array.reshape(784, 1)
     epsilon = 1e-8
-    test_H = (digit_array - mean_ith_features) / (std_ith_features + epsilon)
+    test_H = (digit_array - mean_ith_features) / (std_ith_features + epsilon) #prevent the error of divide by 0
     
     #Feedforward logic
     for k in range(len(trained_model_weights)-1):
@@ -214,13 +214,14 @@ def train_model(training_data, progress_callback, socket_closed):
         for i in range(layer["width"]):
             network_structure.append(layer["size"]) 
             
-    #weight and parameter initialization
+    #weight and bias initialization
     model_bias = []
     model_weights = []
     for i in range(1, len(network_structure)):
-        # bias must be column vector to broadcast correctly: M = W@H + B
+        # B is a column vector: M = W*H + B, initially set every bias to be equal to 0.01
         model_bias.append(np.full((network_structure[i], 1), 0.01))
         initial_weight = np.random.randn(network_structure[i], network_structure[i-1]) * math.sqrt(2/network_structure[i-1])
+        #the best weight initialization when activation function is ReLu: the distribution of every element of the weight matrix that maps layer A to layer B (WA = B) is a normal distribution with the variance equal to 2/dimension_of_A
         model_weights.append(initial_weight)
 
 
@@ -232,7 +233,8 @@ def train_model(training_data, progress_callback, socket_closed):
             return None, None 
 
         #sample data        
-        random_index = np.random.permutation(train_size)
+        rng = np.random.default_rng()
+        random_index = rng.choice(np.arange(0, 60000), size=train_size, replace=False)
         this_train_X = train_X[:, random_index]
         this_train_Y = train_Y[random_index]
         
