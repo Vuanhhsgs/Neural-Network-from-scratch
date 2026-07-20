@@ -84,7 +84,7 @@ test_X = test_X.T
 test_Y = np.load(os.path.join("./mnist_data", "test_Y.npy"))
 
 #Normalize training data(mean = 0 std = 1)
-mean_ith_features = np.mean(train_X, axis=1, keepdims=True)
+mean_ith_features = np.mean(train_X, axis=1, keepdims=True) #if keepdims = false then numpy doesnt differentiate between vectors of size (1,n) and (n.1), and consider its shape as (n, )
 std_ith_features = np.std(train_X, axis=1, keepdims=True)
 std_ith_features[std_ith_features == 0] = 1 #prevent divide by 0
 
@@ -104,7 +104,6 @@ async def safe_send(socket, msg):
 async def socket_handler(socket):
     socket.send_lock = asyncio.Lock()
     socket_closed = threading.Event() #a flag to check whether socket is closed or not
-
     try:
         async for message in socket:
             data = json.loads(message)
@@ -116,9 +115,6 @@ async def socket_handler(socket):
                 digit_data = data.get("message_content")
                 predicted_digit = await Predict_digit(digit_data, socket.model_weights, socket.model_bias)
                 await safe_send(socket, json.dumps({"type": "PREDICT_FINISHED", "content": predicted_digit}))
-
-
-
     except websockets.exceptions.ConnectionClosed:
         print("CLient closed the web or got disconnected or refreshed")
     finally:
@@ -130,7 +126,6 @@ thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent_t
 
 async def modelTraining_task():
     main_event_loop = asyncio.get_running_loop()
-
     while True:
         training_request = await training_queue.get()
         socket = training_request["socket"]
@@ -148,8 +143,6 @@ async def modelTraining_task():
                     safe_send(socket, json.dumps({"type": message_type, "content": content})),
                     main_event_loop
                 )
-
-
             await safe_send(socket, json.dumps({"type": "TRAINING_STARTED"}))
             model_weights, model_bias = await main_event_loop.run_in_executor(thread_pool, train_model, training_data, progress_callback, socket_closed)
             if model_weights is None:
@@ -163,16 +156,11 @@ async def modelTraining_task():
             training_queue.task_done() #regardless the socket is closed or the training_request is finished, notify that this request is no longer in queue
         
                
-
-
 async def main():
     for i in range(max_concurrent_thread):
         asyncio.create_task(modelTraining_task())
     async with websockets.serve(socket_handler,"0.0.0.0", 6767):
         await asyncio.Future()
-
-
-
 
 
 async def Predict_digit(digit_data, trained_model_weights, trained_model_bias):
@@ -208,8 +196,7 @@ def train_model(training_data, progress_callback, socket_closed):
     learningRate = training_data.get("learningRate")    
 
     #Start training
-
-    network_structure = []     #it will look sth like [784 512 512 512 256 256 10] for example 
+    network_structure = [] #it will look sth like [784 512 512 512 256 256 10] for example 
     for layer in layers:
         for i in range(layer["width"]):
             network_structure.append(layer["size"]) 
@@ -218,7 +205,7 @@ def train_model(training_data, progress_callback, socket_closed):
     model_bias = []
     model_weights = []
     for i in range(1, len(network_structure)):
-        # B is a column vector: M = W*H + B, initially set every bias to be equal to 0.01
+        #B is a column vector: M = W*H + B, initially set every bias to be equal to 0.01
         model_bias.append(np.full((network_structure[i], 1), 0.01))
         initial_weight = np.random.randn(network_structure[i], network_structure[i-1]) * math.sqrt(2/network_structure[i-1])
         #the best weight initialization when activation function is ReLu: the distribution of every element of the weight matrix that maps layer A to layer B (WA = B) is a normal distribution with the variance equal to 2/dimension_of_A
@@ -265,12 +252,12 @@ def train_model(training_data, progress_callback, socket_closed):
             this_batch_M = [] 
             this_batch_N = []
             this_batch_H = [] #Hidden layer
-            this_batch_dropout = [] # dropout matrix consisting of 0 and 1
+            this_batch_dropout = [] #dropout matrix consisting of 0 and 1
             
             first_M = model_weights[0] @ batch_matrix_X + model_bias[0] #M_0 = W_0X + B_0; X,M,W lies in R^{d*B}, R^{k*B}, R^{k*d} 
             this_batch_M.append(first_M)
 
-            first_N = np.maximum(0, first_M) # N = ReLu(M)
+            first_N = np.maximum(0, first_M) #N = ReLu(M)
             this_batch_N.append(first_N)
             
             if dropout_enabled:
@@ -392,7 +379,6 @@ def train_model(training_data, progress_callback, socket_closed):
         
         #Send loss socket to update chart
         try:
-
             progress_callback("LOSS_UPDATE", {"epoch": epoch+1, "loss": float(avg_loss)})
         except InterruptedError:
             return None, None
@@ -413,7 +399,6 @@ def train_model(training_data, progress_callback, socket_closed):
         
         #Send accuracy socket to update chart
         try:
-
             progress_callback("ACCURACY_UPDATE", {"epoch": epoch+1, "acc": float(accuracy)})
         except InterruptedError:
             return None, None
